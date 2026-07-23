@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Connection Successful</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f1f4f8;
+            color: #1f2937;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 430px;
+            margin: 50px auto;
+            padding: 30px 24px;
+            text-align: center;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .icon {
+            display: flex;
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 22px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #dcfce7;
+            color: #15803d;
+            font-size: 38px;
+            font-weight: bold;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #15803d;
+            font-size: 26px;
+        }
+
+        p {
+            color: #4b5563;
+            line-height: 1.5;
+        }
+
+        .details {
+            margin-top: 24px;
+            padding: 16px;
+            text-align: left;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .row {
+            margin-bottom: 12px;
+        }
+
+        .row:last-child {
+            margin-bottom: 0;
+        }
+
+        .label {
+            display: block;
+            margin-bottom: 3px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .value {
+            font-weight: bold;
+            word-break: break-all;
+        }
+
+        .notice {
+            margin-top: 24px;
+            padding: 12px;
+            background: #eff6ff;
+            border-radius: 8px;
+            color: #1e40af;
+            font-size: 14px;
+        }
+
+        a {
+            display: block;
+            margin-top: 22px;
+            color: #2563eb;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <div class="icon">✓</div>
+
+        <h1>Connection Successful</h1>
+
+        <p>
+            The ESP32 is now connected to the selected Wi-Fi
+            network.
+        </p>
+
+        <section class="details">
+            <div class="row">
+                <span class="label">
+                    Wi-Fi network
+                </span>
+
+                <span class="value">
+                    {{SSID}}
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">
+                    Device IP address
+                </span>
+
+                <span class="value">
+                    {{IP_ADDRESS}}
+                </span>
+            </div>
+        </section>
+
+        <div class="notice">
+            The Wi-Fi credentials have been saved. The device will
+            reconnect automatically after restarting.
+        </div>
+
+        <a href="/admin">
+            Open device administration
+        </a>
+    </main>
+</body>
+</html>

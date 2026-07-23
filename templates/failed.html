@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Connection Failed</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f1f4f8;
+            color: #1f2937;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 430px;
+            margin: 50px auto;
+            padding: 30px 24px;
+            text-align: center;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .icon {
+            display: flex;
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 22px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #fee2e2;
+            color: #b91c1c;
+            font-size: 34px;
+            font-weight: bold;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #b91c1c;
+            font-size: 26px;
+        }
+
+        p {
+            color: #4b5563;
+            line-height: 1.5;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 14px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #991b1b;
+        }
+
+        .help {
+            margin-top: 22px;
+            padding: 14px;
+            text-align: left;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .help h2 {
+            margin-top: 0;
+            font-size: 17px;
+        }
+
+        .help ul {
+            margin-bottom: 0;
+            padding-left: 20px;
+            color: #4b5563;
+        }
+
+        .help li {
+            margin-bottom: 8px;
+        }
+
+        .button {
+            display: block;
+            width: 100%;
+            margin-top: 24px;
+            padding: 13px;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <div class="icon">×</div>
+
+        <h1>Connection Failed</h1>
+
+        <p>
+            The ESP32 could not connect to:
+        </p>
+
+        <p>
+            <strong>{{SSID}}</strong>
+        </p>
+
+        <div class="message">
+            {{MESSAGE}}
+        </div>
+
+        <section class="help">
+            <h2>Check the following:</h2>
+
+            <ul>
+                <li>
+                    Make sure the Wi-Fi password is correct.
+                </li>
+
+                <li>
+                    Make sure the router is powered on.
+                </li>
+
+                <li>
+                    Move the device closer to the router.
+                </li>
+
+                <li>
+                    Confirm that the network supports 2.4 GHz Wi-Fi.
+                </li>
+            </ul>
+        </section>
+
+        <a class="button" href="/">
+            Try Again
+        </a>
+    </main>
+</body>
+</html>

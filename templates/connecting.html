@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        http-equiv="refresh"
+        content="2;url=/status"
+    >
+
+    <title>Connecting</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f1f4f8;
+            color: #1f2937;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 430px;
+            margin: 50px auto;
+            padding: 30px 24px;
+            text-align: center;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 25px;
+        }
+
+        p {
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .spinner {
+            width: 54px;
+            height: 54px;
+            margin: 24px auto;
+            border: 6px solid #dbeafe;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .network {
+            margin-top: 20px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .notice {
+            margin-top: 22px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <div class="spinner"></div>
+
+        <h1>Connecting to Wi-Fi</h1>
+
+        <p>
+            The device is attempting to connect to:
+        </p>
+
+        <div class="network">
+            <strong>{{SSID}}</strong>
+        </div>
+
+        <p>
+            This may take several seconds.
+        </p>
+
+        <p class="notice">
+            Keep this page open while the connection is tested.
+        </p>
+    </main>
+</body>
+</html>
