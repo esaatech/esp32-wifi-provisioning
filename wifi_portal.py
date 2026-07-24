@@ -34,7 +34,7 @@ import time
 import machine
 import network
 
-from wifi_storage import save_credentials, delete_credentials
+from wifi_storage import save_credentials, delete_credentials, load_setup_ap_config
 
 print("LOADED WIFI PORTAL VERSION 2")
 # ---------------------------------------------------------
@@ -342,7 +342,15 @@ def get_connected_ssid(wifi_manager):
     return "Unknown"
 
 
-def render_admin_page(wifi_manager):
+def render_admin_page(wifi_manager, mode="setup", message=""):
+    """
+    Renders the administration home page.
+
+    mode:
+        "setup"   - shown while on the setup Access Point
+        "station" - permanent LAN hub while on building Wi-Fi
+    """
+
     connected = wifi_manager.is_connected()
 
     if connected:
@@ -357,6 +365,110 @@ def render_admin_page(wifi_manager):
         ip_address = "Unavailable"
         signal_strength = "Unavailable"
 
+    setup_ap = load_setup_ap_config()
+    setup_ap_ssid = setup_ap["ssid"]
+    setup_ap_password = setup_ap["password"]
+
+    if mode == "station":
+        wifi_tools = """
+            <p style="color:#64748b;line-height:1.5;margin:0 0 12px;">
+                To change the building Wi-Fi, hold the setup button
+                for five seconds. The device will open its setup
+                Access Point again.
+            </p>
+        """
+        setup_ap_tools = """
+            <section class="card">
+                <h2>Setup Access Point</h2>
+
+                <p style="color:#64748b;line-height:1.5;margin:0 0 12px;">
+                    This is the temporary Wi-Fi network created when
+                    the device enters setup mode.
+                </p>
+
+                {message_html}
+
+                <form method="POST" action="/setup-ap">
+                    <label class="label" for="ap_ssid">
+                        Setup AP name
+                    </label>
+                    <input
+                        id="ap_ssid"
+                        name="ssid"
+                        type="text"
+                        maxlength="32"
+                        required
+                        value="{ap_ssid}"
+                        style="width:100%;padding:12px;margin:0 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;"
+                    >
+
+                    <label class="label" for="ap_password">
+                        Setup AP password
+                    </label>
+                    <input
+                        id="ap_password"
+                        name="password"
+                        type="text"
+                        minlength="8"
+                        maxlength="63"
+                        required
+                        value="{ap_password}"
+                        style="width:100%;padding:12px;margin:0 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;"
+                    >
+
+                    <button class="button primary" type="submit">
+                        Save Setup AP Settings
+                    </button>
+                </form>
+            </section>
+        """.format(
+            message_html=build_message_html(message),
+            ap_ssid=html_escape(setup_ap_ssid),
+            ap_password=html_escape(setup_ap_password)
+        )
+        product_links = """
+            <section class="card">
+                <h2>Applications</h2>
+
+                <p style="color:#64748b;line-height:1.5;margin:0 0 12px;">
+                    Product pages will appear here as links from this
+                    network hub.
+                </p>
+
+                <a class="button secondary" href="/access">
+                    Access / Users (coming soon)
+                </a>
+            </section>
+        """
+    else:
+        wifi_tools = """
+            <a class="button primary" href="/">
+                Change Wi-Fi Network
+            </a>
+
+            <a class="button secondary" href="/rescan">
+                Scan Nearby Networks
+            </a>
+        """
+        setup_ap_tools = """
+            <section class="card">
+                <h2>Setup Access Point</h2>
+
+                <div class="row">
+                    <span class="label">Setup AP name</span>
+                    <span class="value">{ap_ssid}</span>
+                </div>
+
+                <p style="color:#64748b;line-height:1.5;margin:12px 0 0;">
+                    Change the setup AP name and password from the
+                    permanent admin page after joining building Wi-Fi.
+                </p>
+            </section>
+        """.format(
+            ap_ssid=html_escape(setup_ap_ssid)
+        )
+        product_links = ""
+
     return render_template(
         ADMIN_TEMPLATE,
         {
@@ -364,7 +476,10 @@ def render_admin_page(wifi_manager):
             "CONNECTION_STATUS": html_escape(connection_status),
             "SSID": html_escape(ssid),
             "IP_ADDRESS": html_escape(ip_address),
-            "SIGNAL_STRENGTH": html_escape(signal_strength)
+            "SIGNAL_STRENGTH": html_escape(signal_strength),
+            "WIFI_TOOLS": wifi_tools,
+            "SETUP_AP_TOOLS": setup_ap_tools,
+            "PRODUCT_LINKS": product_links
         }
     )
 

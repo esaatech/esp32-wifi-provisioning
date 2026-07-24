@@ -292,14 +292,24 @@ Shows:
 
 ## admin.html
 
-Administration dashboard.
+Administration home page — like a router's main status page.
 
-Displays:
+Core network section (always present, product-independent):
 
 - Device status
 - Connected network
 - IP address
 - Signal strength
+- Restart / forget Wi-Fi (device network tools)
+
+Then, depending on what this ESP32 product is building, the same home
+page can show links to other feature pages. Examples:
+
+- Access control → Add / delete users, manage UIDs, view access logs
+- Sensor node → Thresholds, calibration, reporting interval
+- Lighting → Zones, schedules, on/off controls
+
+The networking core stays the same; product pages plug in as links.
 
 ---
 
@@ -443,7 +453,7 @@ Delete saved Wi-Fi credentials
 
 ✅ ESP32 Access Point
 
-✅ Embedded HTTP server
+✅ Embedded HTTP server (setup / AP mode)
 
 ✅ Wi-Fi network scanning
 
@@ -457,13 +467,116 @@ Delete saved Wi-Fi credentials
 
 ✅ Automatic reconnection
 
-✅ Device Administration page
+✅ Setup button recovery mode (GPIO 27)
+
+✅ Status LED indicator (GPIO 2: blink / solid)
+
+✅ Setup-mode administration page (while on the AP)
+
+## In Progress / Next
+
+⬜ Permanent local admin page on building Wi-Fi (Task 5)
 
 ---
 
 # Planned Improvements
 
-## Phase 2
+## Next Build: Permanent Local Admin Page (Task 5)
+
+Goal: after the ESP32 joins the building network, keep a management website
+available on the device IP so installers and admins can configure the device
+from a phone or laptop on the same LAN — without USB, Thonny, or the cloud.
+
+Think of it like a **router admin home page**:
+
+1. **Network core (always there)** — connection status, SSID, IP, signal,
+   restart, change/forget Wi-Fi.
+2. **Product links (added per project)** — shortcuts to other pages for
+   whatever this device is building.
+
+Example for access control:
+
+```
+http://192.168.x.x/          ← network status home (router-like)
+  → Access / Users           ← add, delete, disable UIDs
+  → Access logs              ← later
+  → Door settings            ← later
+```
+
+The same network home page can later link to different pages for sensors,
+lighting, or other products. Networking stays reusable; product features
+are separate pages linked from the hub.
+
+### Runtime model
+
+```
+Boot
+  → connect saved Wi-Fi (or run setup portal)
+  → if connected: start admin server at http://<device-ip>/
+  → main loop:
+        poll setup button
+        poll Wi-Fi / LED
+        serve admin HTTP requests (non-blocking)
+```
+
+Setup mode (AP + provisioning) stays separate from normal mode
+(station Wi-Fi + permanent admin).
+
+### Phase A — network hub (Task 5)
+
+1. Add a dedicated module (for example `admin_server.py`) for STA-mode HTTP only.
+2. Reuse `templates/admin.html` and existing status helpers from `wifi_portal.py`.
+3. From `main.py`, after a successful connection:
+   - print the device IP
+   - start the admin server with a socket timeout so the button / LED loop is not blocked
+4. Initial routes (network only):
+   - `GET /` or `GET /admin` — device and network status (the hub)
+   - `POST /restart` — reboot the ESP32
+   - `POST /forget-wifi` — delete credentials and return to setup
+5. Leave placeholders / section for product links (empty until a product page exists).
+6. Stop the admin server when entering setup mode; start it again after a
+   successful reconnect.
+
+### Phase B — product pages linked from the hub
+
+Once the network hub works on the LAN, add product-specific pages and link
+them from the home page. For access control (toward Task 8):
+
+- `/access` or `/users` — add / list / disable / delete UIDs
+- Store entries in flash (for example `authorized_cards.json`)
+- Home page shows a link: **Access / Users**
+
+Other products would add their own links the same way without changing the
+network core.
+
+### Why this shape
+
+| Choice | Reason |
+|--------|--------|
+| Network hub first (router-like) | Every product needs status + Wi-Fi tools |
+| Product features as separate linked pages | Access control, sensors, lighting can share the same networking shell |
+| Separate admin server (not stuck in setup portal) | Setup portal exits after provisioning; admin must live in normal mode |
+| Non-blocking `accept()` | Setup button, LED, and later RFID keep running |
+| Config as web forms → JSON on flash | Works offline; no cloud required |
+
+### Out of scope for Task 5 (later Asana tasks)
+
+- Stable hostname such as `sbty-access.local` → Task 6
+- Administrator login / sessions → Task 7
+- Full user and UID management UI → Task 8
+- Enroll-by-scan with the PN532 → Task 9
+
+### Acceptance checks
+
+- [ ] Phone on the same building Wi-Fi can open `http://<device-ip>/`
+- [ ] Home page shows network status (device, SSID, IP, signal)
+- [ ] Home page is structured as a hub that can later link to product pages
+- [ ] Main loop still responds to the setup button and status LED
+- [ ] Admin server stops during setup AP mode and resumes after reconnect
+
+---
+
+## Phase 2 (setup UX)
 
 - Automatic Captive Portal
 - Auto-open configuration page
@@ -474,22 +587,16 @@ Delete saved Wi-Fi credentials
 
 ---
 
-## Phase 3
+## Phase 3 (admin features beyond Task 5)
 
-Administration Portal
-
-- Change Wi-Fi
-- Device restart
+- Change Wi-Fi from the permanent admin page
 - Firmware updates
-- Device information
 - Access logs
-- User management
+- Broader user / credential management
 
 ---
 
-## Phase 4
-
-Security
+## Phase 4 (security)
 
 - Administrator login
 - HTTPS (future hardware permitting)
@@ -641,6 +748,7 @@ Holding the button for five seconds starts the Wi-Fi setup portal. Existing cred
 - `setup_button.py` — detects the five-second setup-button hold.
 - `status_led.py` — controls blinking, solid, and off LED states.
 - `templates/` — contains the HTML pages used by the setup portal.
+- `admin_server.py` — *(planned)* permanent LAN admin website while connected to building Wi-Fi.
 
 ## Provisioning Flow
 
@@ -654,6 +762,7 @@ Holding the button for five seconds starts the Wi-Fi setup portal. Existing cred
 8. The ESP32 tests the submitted credentials.
 9. Successful credentials are saved and the LED becomes solid.
 10. Failed credentials are not saved and the LED continues blinking.
+11. *(planned)* After a successful connection, a permanent admin page stays available at `http://<device-ip>/` for ongoing configuration.
 
 ## Optional LED Integration
 

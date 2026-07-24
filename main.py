@@ -5,6 +5,7 @@
 # Responsibilities:
 # - Connect using saved Wi-Fi credentials.
 # - Start setup mode when no valid credentials exist.
+# - Host a permanent LAN admin page while connected.
 # - Monitor a dedicated setup button.
 # - Display Wi-Fi status using the onboard LED.
 #
@@ -15,17 +16,11 @@
 import time
 
 from wifi_manager import WiFiManager
-from wifi_storage import load_credentials
+from wifi_storage import load_credentials, load_setup_ap_config
 from wifi_portal import run_setup_server
 from setup_button import SetupButton
 from status_led import StatusLED
-
-
-# -------------------------------------------------
-# Configuration
-# -------------------------------------------------
-
-SETUP_AP_NAME = "SBTY-Access-Control-Setup"
+from admin_server import AdminServer
 
 
 # -------------------------------------------------
@@ -35,6 +30,7 @@ SETUP_AP_NAME = "SBTY-Access-Control-Setup"
 wifi = WiFiManager()
 setup_button = SetupButton()
 status_led = StatusLED()
+admin_server = AdminServer(wifi)
 
 
 # -------------------------------------------------
@@ -118,14 +114,25 @@ def enter_setup_mode():
     # is running.
     status_led.blink()
 
+    # Free port 80 before the setup portal starts.
+    admin_server.stop()
+
     try:
         # Leave the router so phones can join the setup AP.
         wifi.disconnect()
 
-        access_point_info = wifi.start_access_point()
+        setup_ap = load_setup_ap_config()
+        ap_ssid = setup_ap["ssid"]
+        ap_password = setup_ap["password"]
+
+        access_point_info = wifi.start_access_point(
+            ssid=ap_ssid,
+            password=ap_password
+        )
 
         print("Setup Access Point started.")
-        print("Connect to:", SETUP_AP_NAME)
+        print("Connect to:", ap_ssid)
+        print("Setup password:", ap_password)
         print("Open: http://192.168.4.1")
         print("Access Point information:", access_point_info)
 
@@ -141,6 +148,7 @@ def enter_setup_mode():
         print("ESP32 is connected.")
 
         status_led.solid()
+        admin_server.start()
         return True
 
     print("ESP32 is not connected to Wi-Fi.")
@@ -166,6 +174,9 @@ connected = connect_saved_wifi()
 if not connected:
     connected = enter_setup_mode()
 
+if connected:
+    admin_server.start()
+
 
 # -------------------------------------------------
 # Normal networking loop
@@ -175,9 +186,30 @@ print()
 print("Networking system running.")
 print("Hold the setup button for 5 seconds")
 print("to reopen Wi-Fi configuration.")
+
+if wifi.is_connected():
+    print(
+        "Admin page: http://{}/".format(
+            wifi.get_ip_address()
+        )
+    )
+
 print()
 
 while True:
+
+    # ---------------------------------------------
+    # Serve the permanent LAN admin page
+    # ---------------------------------------------
+
+    if wifi.is_connected():
+        if not admin_server.is_running():
+            admin_server.start()
+
+        admin_server.poll()
+
+    elif admin_server.is_running():
+        admin_server.stop()
 
     # ---------------------------------------------
     # Monitor current Wi-Fi status
@@ -209,4 +241,4 @@ while True:
 
         connected = enter_setup_mode()
 
-    time.sleep_ms(100)
+    time.sleep_ms(20)
