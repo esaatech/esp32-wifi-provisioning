@@ -475,7 +475,9 @@ Delete saved Wi-Fi credentials
 
 ## In Progress / Next
 
-⬜ Permanent local admin page on building Wi-Fi (Task 5)
+✅ Permanent local admin page on building Wi-Fi (Task 5)
+
+⬜ Stable device address / hostname (Task 6)
 
 ---
 
@@ -561,18 +563,84 @@ network core.
 
 ### Out of scope for Task 5 (later Asana tasks)
 
-- Stable hostname such as `sbty-access.local` → Task 6
+- ~~Stable hostname such as `sbty-access.local` → Task 6~~ (see below)
 - Administrator login / sessions → Task 7
 - Full user and UID management UI → Task 8
 - Enroll-by-scan with the PN532 → Task 9
 
 ### Acceptance checks
 
-- [ ] Phone on the same building Wi-Fi can open `http://<device-ip>/`
-- [ ] Home page shows network status (device, SSID, IP, signal)
-- [ ] Home page is structured as a hub that can later link to product pages
-- [ ] Main loop still responds to the setup button and status LED
-- [ ] Admin server stops during setup AP mode and resumes after reconnect
+- [x] Phone on the same building Wi-Fi can open `http://<device-ip>/`
+- [x] Home page shows network status (device, SSID, IP, signal)
+- [x] Home page is structured as a hub that can later link to product pages
+- [x] Main loop still responds to the setup button and status LED
+- [x] Admin server stops during setup AP mode and resumes after reconnect
+
+---
+
+## Next Build: Stable Device Address (Task 6)
+
+Goal: make the permanent admin page easy to find after restarts, without
+hunting for a changing DHCP IP address.
+
+### What the firmware does
+
+1. Sets the LAN hostname to `sbty-access` **before** connecting to Wi-Fi.
+2. Advertises that name over:
+   - DHCP (so the router may show `sbty-access` in its client list)
+   - mDNS (so many phones/laptops can open `http://sbty-access.local/`)
+3. Keeps showing the current IP on the admin page as a fallback.
+4. Prints both URLs in the serial log after connect.
+
+### How to open the admin page
+
+Preferred:
+
+```
+http://sbty-access.local/
+```
+
+Fallback (always works on the same LAN if you know the IP):
+
+```
+http://192.168.x.x/
+```
+
+Notes:
+
+- `.local` names use mDNS. They work on most macOS, Linux, and many
+  Android/iOS clients on the same Wi-Fi. Some Windows PCs need Bonjour
+  or may need the IP fallback.
+- Hostname is applied at connection time. After changing firmware that
+  sets the hostname, reboot or reconnect Wi-Fi once.
+
+### Recommended install step: DHCP reservation
+
+For production installs, lock the ESP32 to one IP on the building router.
+That is the most reliable way to keep the admin page findable even when
+mDNS is blocked.
+
+1. Connect the ESP32 to the building Wi-Fi and open the admin page.
+2. Note:
+   - Device IP address
+   - Connected Wi-Fi name
+3. On the router admin page, open **DHCP / LAN / Address Reservation**
+   (wording varies by brand).
+4. Create a reservation for this ESP32:
+   - Use the device MAC address if the router shows it
+   - Or reserve by the current hostname `sbty-access` / current IP
+5. Save the reservation and reboot the ESP32 once.
+6. Confirm the same IP returns after restart.
+7. Label the device with:
+   - `http://sbty-access.local/`
+   - reserved IP, for example `http://192.168.1.50/`
+
+### Acceptance checks
+
+- [ ] Device hostname is `sbty-access`
+- [ ] Admin page shows `http://sbty-access.local/` and the IP fallback
+- [ ] Serial log prints both the local URL and the IP URL
+- [ ] DHCP reservation steps are documented for installers
 
 ---
 
@@ -762,7 +830,8 @@ Holding the button for five seconds starts the Wi-Fi setup portal. Existing cred
 8. The ESP32 tests the submitted credentials.
 9. Successful credentials are saved and the LED becomes solid.
 10. Failed credentials are not saved and the LED continues blinking.
-11. *(planned)* After a successful connection, a permanent admin page stays available at `http://<device-ip>/` for ongoing configuration.
+11. After a successful connection, a permanent admin page stays available on the LAN.
+12. Preferred admin URL: `http://sbty-access.local/` (device IP remains the fallback).
 
 ## Optional LED Integration
 

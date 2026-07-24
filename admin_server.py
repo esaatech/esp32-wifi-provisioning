@@ -93,6 +93,7 @@ class AdminServer:
         ip_address = self.wifi_manager.get_ip_address()
 
         print("Permanent admin page available at:")
+        print("  {}".format(self.wifi_manager.get_local_url()))
         print("  http://{}/".format(ip_address))
 
     # -------------------------------------------------

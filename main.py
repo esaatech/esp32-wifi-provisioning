@@ -79,6 +79,7 @@ def connect_saved_wifi():
         print("Wi-Fi connected successfully.")
         print("Network:", ssid)
         print("IP address:", result.get("ip_address"))
+        print("Local address:", wifi.get_local_url())
 
         status_led.solid()
         return True
@@ -188,8 +189,9 @@ print("Hold the setup button for 5 seconds")
 print("to reopen Wi-Fi configuration.")
 
 if wifi.is_connected():
+    print("Admin page:", wifi.get_local_url())
     print(
-        "Admin page: http://{}/".format(
+        "Admin IP fallback: http://{}/".format(
             wifi.get_ip_address()
         )
     )

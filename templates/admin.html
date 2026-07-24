@@ -177,11 +177,21 @@
 
             <div class="row">
                 <span class="label">
-                    Device IP address
+                    Local address
                 </span>
 
                 <span class="value">
-                    {{IP_ADDRESS}}
+                    <a href="{{LOCAL_URL}}">{{MDNS_NAME}}</a>
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">
+                    Device IP address (fallback)
+                </span>
+
+                <span class="value">
+                    <a href="http://{{IP_ADDRESS}}/">{{IP_ADDRESS}}</a>
                 </span>
             </div>
 

@@ -358,12 +358,16 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
         ssid = get_connected_ssid(wifi_manager)
         ip_address = wifi_manager.get_ip_address() or "Unavailable"
         signal_strength = get_signal_strength(wifi_manager)
+        mdns_name = wifi_manager.get_mdns_name()
+        local_url = wifi_manager.get_local_url()
 
     else:
         connection_status = "Not connected"
         ssid = "None"
         ip_address = "Unavailable"
         signal_strength = "Unavailable"
+        mdns_name = wifi_manager.get_mdns_name()
+        local_url = wifi_manager.get_local_url()
 
     setup_ap = load_setup_ap_config()
     setup_ap_ssid = setup_ap["ssid"]
@@ -477,6 +481,8 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
             "SSID": html_escape(ssid),
             "IP_ADDRESS": html_escape(ip_address),
             "SIGNAL_STRENGTH": html_escape(signal_strength),
+            "MDNS_NAME": html_escape(mdns_name),
+            "LOCAL_URL": html_escape(local_url),
             "WIFI_TOOLS": wifi_tools,
             "SETUP_AP_TOOLS": setup_ap_tools,
             "PRODUCT_LINKS": product_links
