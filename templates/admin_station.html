@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Device Administration</title>
+    <style>
+        *{box-sizing:border-box}
+        body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#f1f4f8;color:#1f2937}
+        .container{width:100%;max-width:480px;margin:30px auto}
+        .header,.card{margin-bottom:16px;padding:22px;background:#fff;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+        h1{margin:0 0 7px;font-size:26px}
+        h2{margin-top:0;font-size:19px}
+        .subtitle{margin:0;color:#64748b}
+        .status{display:inline-block;margin-top:15px;padding:7px 11px;border-radius:20px;background:#dcfce7;color:#166534;font-size:14px;font-weight:bold}
+        .row{padding:11px 0;border-bottom:1px solid #e5e7eb}
+        .row:last-child{border-bottom:none}
+        .label{display:block;margin-bottom:4px;color:#64748b;font-size:13px}
+        .value{font-weight:bold;word-break:break-all}
+        .hint{color:#64748b;line-height:1.5;margin:0 0 12px}
+        .button{display:block;width:100%;margin-top:12px;padding:13px;border:none;border-radius:8px;text-align:center;font-size:16px;font-weight:bold;text-decoration:none;cursor:pointer}
+        .primary{background:#2563eb;color:#fff}
+        .secondary{background:#e2e8f0;color:#1e293b}
+        .danger{background:#dc2626;color:#fff}
+        .warning{padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;color:#9a3412;font-size:14px;line-height:1.5}
+        .message{margin:0 0 12px;padding:12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;color:#065f46;font-size:14px;line-height:1.5}
+        input{width:100%;padding:12px;margin:0 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px}
+        form{margin:0}
+        .footer{margin-top:22px;text-align:center;color:#94a3b8;font-size:12px}
+    </style>
+</head>
+<body>
+<main class="container">
+    <section class="header">
+        <h1>Device Administration</h1>
+        <p class="subtitle">{{DEVICE_NAME}}</p>
+        <span class="status">{{CONNECTION_STATUS}}</span>
+    </section>
+
+    {{MESSAGE_HTML}}
+
+    <section class="card">
+        <h2>Network Information</h2>
+        <div class="row">
+            <span class="label">Connected Wi-Fi</span>
+            <span class="value">{{SSID}}</span>
+        </div>
+        <div class="row">
+            <span class="label">Local address</span>
+            <span class="value"><a href="{{LOCAL_URL}}">{{MDNS_NAME}}</a></span>
+        </div>
+        <div class="row">
+            <span class="label">Device IP address (fallback)</span>
+            <span class="value"><a href="http://{{IP_ADDRESS}}/">{{IP_ADDRESS}}</a></span>
+        </div>
+        <div class="row">
+            <span class="label">Signal strength</span>
+            <span class="value">{{SIGNAL_STRENGTH}}</span>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Wi-Fi Configuration</h2>
+        <p class="hint">
+            To change the building Wi-Fi, hold the setup button for
+            five seconds. The device will open its setup Access Point again.
+        </p>
+    </section>
+
+    <section class="card">
+        <h2>Setup Access Point</h2>
+        <p class="hint">
+            This is the temporary Wi-Fi network created when the device
+            enters setup mode.
+        </p>
+        <form method="POST" action="/setup-ap">
+            <label class="label" for="ap_ssid">Setup AP name</label>
+            <input id="ap_ssid" name="ssid" type="text" maxlength="32" required value="{{AP_SSID}}">
+            <label class="label" for="ap_password">Setup AP password</label>
+            <input id="ap_password" name="password" type="text" minlength="8" maxlength="63" required value="{{AP_PASSWORD}}">
+            <button class="button primary" type="submit">Save Setup AP Settings</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Administrator Account</h2>
+        <form method="POST" action="/change-password">
+            <label class="label" for="current_password">Current password</label>
+            <input id="current_password" name="current_password" type="password" required>
+            <label class="label" for="new_password">New password</label>
+            <input id="new_password" name="new_password" type="password" minlength="4" required>
+            <label class="label" for="confirm_password">Confirm new password</label>
+            <input id="confirm_password" name="confirm_password" type="password" minlength="4" required>
+            <button class="button primary" type="submit">Change Password</button>
+        </form>
+        <form method="POST" action="/logout">
+            <button class="button secondary" type="submit">Log Out</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Device Actions</h2>
+        <form method="POST" action="/restart">
+            <button class="button secondary" type="submit">Restart Device</button>
+        </form>
+        <form method="POST" action="/forget-wifi">
+            <button class="button danger" type="submit">Forget Saved Wi-Fi</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Applications</h2>
+        <p class="hint">
+            Product pages will appear here as links from this network hub.
+        </p>
+        <a class="button secondary" href="/access">Access / Users (coming soon)</a>
+    </section>
+
+    <section class="card">
+        <div class="warning">
+            Forgetting the saved Wi-Fi network will return the device to
+            setup mode. You will need to reconnect to the ESP32 setup
+            Access Point.
+        </div>
+    </section>
+
+    <div class="footer">SBTY Access Control</div>
+</main>
+</body>
+</html>

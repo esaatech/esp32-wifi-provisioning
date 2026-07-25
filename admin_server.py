@@ -3,8 +3,7 @@
 # Permanent LAN admin website for MicroPython ESP32.
 #
 # Runs only while the device is connected to building Wi-Fi.
-# Uses a short socket timeout so main.py can keep polling the
-# setup button and status LED.
+# Protected by administrator login (Task 7).
 
 import socket
 import time
@@ -13,27 +12,42 @@ import machine
 from wifi_storage import delete_credentials, save_setup_ap_config
 from wifi_portal import (
     render_admin_page,
+    render_login_page,
     receive_request,
     parse_request_line,
     get_request_body,
     parse_form_data,
     send_response,
+    send_redirect,
     send_not_found,
+)
+from admin_auth import (
+    AdminAuth,
+    SESSION_COOKIE,
+    get_cookie,
+    session_cookie_header,
+    clear_session_cookie_header,
 )
 
 
 ADMIN_PORT = 80
 ACCEPT_TIMEOUT_SECONDS = 0.05
-CLIENT_TIMEOUT_SECONDS = 3
+CLIENT_TIMEOUT_SECONDS = 10
+# One client at a time — parallel sockets were leaving half-dead
+# connections that timed out during the admin page send.
+MAX_CLIENTS_PER_POLL = 1
 
-# Common when the browser cancels a tab, prefetches, or drops
-# the socket early. Not fatal for the admin server.
 _IGNORED_SOCKET_ERRNOS = (
     104,  # ECONNRESET
     116,  # ETIMEDOUT
     107,  # ENOTCONN
     103,  # ECONNABORTED
     128,  # ENOTCONN on some ports
+)
+
+PUBLIC_PATHS = (
+    "/login",
+    "/favicon.ico",
 )
 
 
@@ -49,9 +63,6 @@ def _is_benign_socket_error(error):
 class AdminServer:
     """
     Non-blocking HTTP hub for network status and device actions.
-
-    Product-specific pages (access control, sensors, etc.) will be
-    linked from the home page in later tasks.
     """
 
     def __init__(self, wifi_manager, port=ADMIN_PORT):
@@ -60,6 +71,7 @@ class AdminServer:
         self.server = None
         self._pending_action = None
         self._wifi_lost_count = 0
+        self.auth = AdminAuth()
 
     # -------------------------------------------------
 
@@ -69,10 +81,6 @@ class AdminServer:
     # -------------------------------------------------
 
     def start(self):
-        """
-        Starts listening on the station IP.
-        """
-
         if self.server is not None:
             return
 
@@ -85,7 +93,7 @@ class AdminServer:
         server = socket.socket()
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(address)
-        server.listen(2)
+        server.listen(5)
         server.settimeout(ACCEPT_TIMEOUT_SECONDS)
 
         self.server = server
@@ -95,14 +103,11 @@ class AdminServer:
         print("Permanent admin page available at:")
         print("  {}".format(self.wifi_manager.get_local_url()))
         print("  http://{}/".format(ip_address))
+        print("Admin login required.")
 
     # -------------------------------------------------
 
     def stop(self):
-        """
-        Closes the admin listener (for example before setup mode).
-        """
-
         if self.server is None:
             return
 
@@ -116,18 +121,16 @@ class AdminServer:
 
     # -------------------------------------------------
 
+    def _is_authenticated(self, request):
+        token = get_cookie(request, SESSION_COOKIE)
+        return self.auth.validate_session(token)
+
+    # -------------------------------------------------
+
     def poll(self):
-        """
-        Handles at most one pending HTTP request.
-
-        Safe to call repeatedly from the main loop.
-        """
-
         if self.server is None:
             return
 
-        # Ignore brief Wi-Fi glitches so one failed poll does not
-        # tear down the admin listener.
         if not self.wifi_manager.is_connected():
             self._wifi_lost_count += 1
 
@@ -138,13 +141,30 @@ class AdminServer:
 
         self._wifi_lost_count = 0
 
+        for _ in range(MAX_CLIENTS_PER_POLL):
+            handled = self._handle_one_client()
+
+            if not handled:
+                break
+
+            action = self._pending_action
+            self._pending_action = None
+
+            if action == "restart":
+                print("Restarting ESP32 in 2 seconds...")
+                time.sleep(2)
+                machine.reset()
+
+    # -------------------------------------------------
+
+    def _handle_one_client(self):
         client = None
 
         try:
             try:
                 client, remote_address = self.server.accept()
             except OSError:
-                return
+                return False
 
             try:
                 client.settimeout(CLIENT_TIMEOUT_SECONDS)
@@ -156,8 +176,7 @@ class AdminServer:
             request = receive_request(client)
 
             if not request:
-                # Browser opened then closed (common with probes).
-                return
+                return True
 
             method, path = parse_request_line(request)
 
@@ -169,9 +188,8 @@ class AdminServer:
                     "<h1>Invalid request</h1>",
                     status="400 Bad Request"
                 )
-                return
+                return True
 
-            # Browsers often request this automatically.
             if method == "GET" and path == "/favicon.ico":
                 send_response(
                     client,
@@ -179,14 +197,71 @@ class AdminServer:
                     status="204 No Content",
                     content_type="image/x-icon"
                 )
-                return
+                return True
+
+            # -----------------------------------------
+            # Login / logout (public + session control)
+            # -----------------------------------------
+
+            if method == "GET" and path == "/login":
+                if self._is_authenticated(request):
+                    send_redirect(client, "/")
+                else:
+                    send_response(client, render_login_page())
+                return True
+
+            if method == "POST" and path == "/login":
+                body = get_request_body(request)
+                form = parse_form_data(body)
+                password = form.get("password", "")
+
+                ok, message, token = self.auth.login(password)
+
+                if ok:
+                    print("Admin login successful.")
+                    send_redirect(
+                        client,
+                        "/",
+                        extra_headers=[session_cookie_header(token)]
+                    )
+                else:
+                    print("Admin login failed:", message)
+                    send_response(
+                        client,
+                        render_login_page(message)
+                    )
+                return True
+
+            if method == "POST" and path == "/logout":
+                token = get_cookie(request, SESSION_COOKIE)
+                self.auth.destroy_session(token)
+                send_redirect(
+                    client,
+                    "/login",
+                    extra_headers=[clear_session_cookie_header()]
+                )
+                return True
+
+            # -----------------------------------------
+            # Everything else requires a valid session
+            # -----------------------------------------
+
+            if path not in PUBLIC_PATHS:
+                if not self._is_authenticated(request):
+                    send_redirect(client, "/login")
+                    return True
 
             if method == "GET" and path in ("/", "/admin"):
+                import gc
+                gc.collect()
+                print("Building admin page...")
                 page = render_admin_page(
                     self.wifi_manager,
                     mode="station"
                 )
+                print("Sending admin page...")
                 send_response(client, page)
+                print("Admin page sent.")
 
             elif method == "POST" and path == "/setup-ap":
                 body = get_request_body(request)
@@ -222,6 +297,58 @@ class AdminServer:
                         self.wifi_manager,
                         mode="station",
                         message="Could not save setup AP settings."
+                    )
+                    send_response(
+                        client,
+                        page,
+                        status="500 Internal Server Error"
+                    )
+
+            elif method == "POST" and path == "/change-password":
+                body = get_request_body(request)
+                form = parse_form_data(body)
+
+                current_password = form.get("current_password", "")
+                new_password = form.get("new_password", "")
+                confirm_password = form.get("confirm_password", "")
+
+                try:
+                    if not self.auth.verify_password(current_password):
+                        raise ValueError(
+                            "Current password is incorrect."
+                        )
+
+                    if new_password != confirm_password:
+                        raise ValueError(
+                            "New password confirmation does not match."
+                        )
+
+                    self.auth.set_password(new_password)
+                    print("Admin password changed.")
+
+                    send_redirect(
+                        client,
+                        "/login",
+                        extra_headers=[clear_session_cookie_header()]
+                    )
+
+                except ValueError as error:
+                    page = render_admin_page(
+                        self.wifi_manager,
+                        mode="station",
+                        message=str(error)
+                    )
+                    send_response(client, page)
+
+                except Exception as error:
+                    print(
+                        "Could not change admin password:",
+                        repr(error)
+                    )
+                    page = render_admin_page(
+                        self.wifi_manager,
+                        mode="station",
+                        message="Could not change admin password."
                     )
                     send_response(
                         client,
@@ -316,13 +443,7 @@ class AdminServer:
                 except Exception:
                     pass
 
-        action = self._pending_action
-        self._pending_action = None
-
-        if action == "restart":
-            print("Restarting ESP32 in 2 seconds...")
-            time.sleep(2)
-            machine.reset()
+        return True
 
 
 def _simple_page(title, message):

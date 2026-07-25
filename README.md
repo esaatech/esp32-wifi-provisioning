@@ -477,7 +477,9 @@ Delete saved Wi-Fi credentials
 
 ✅ Permanent local admin page on building Wi-Fi (Task 5)
 
-⬜ Stable device address / hostname (Task 6)
+✅ Stable device address / hostname (Task 6)
+
+✅ Administrator login (Task 7)
 
 ---
 
@@ -563,8 +565,8 @@ network core.
 
 ### Out of scope for Task 5 (later Asana tasks)
 
-- ~~Stable hostname such as `sbty-access.local` → Task 6~~ (see below)
-- Administrator login / sessions → Task 7
+- ~~Stable hostname such as `sbty-access.local` → Task 6~~ (done)
+- ~~Administrator login / sessions → Task 7~~ (done)
 - Full user and UID management UI → Task 8
 - Enroll-by-scan with the PN532 → Task 9
 
@@ -637,10 +639,59 @@ mDNS is blocked.
 
 ### Acceptance checks
 
-- [ ] Device hostname is `sbty-access`
-- [ ] Admin page shows `http://sbty-access.local/` and the IP fallback
-- [ ] Serial log prints both the local URL and the IP URL
-- [ ] DHCP reservation steps are documented for installers
+- [x] Device hostname is `sbty-access`
+- [x] Admin page shows `http://sbty-access.local/` and the IP fallback
+- [x] Serial log prints both the local URL and the IP URL
+- [x] DHCP reservation steps are documented for installers
+
+---
+
+## Completed: Administrator Login (Task 7)
+
+Goal: protect the permanent LAN admin page so only an administrator can
+change device settings.
+
+### Behavior
+
+- Visiting `http://sbty-access.local/` (or the device IP) redirects to
+  `/login` until signed in.
+- Default first-boot password: `admin1234` (change it from the admin page).
+- Password is stored as a salted SHA-256 hash in `admin_auth.json`.
+- Successful login creates a session cookie (`sbty_session`).
+- Sessions expire after 10 minutes of inactivity.
+- Logout clears the session.
+- After 5 failed logins, the device locks for 60 seconds.
+- Setup Access Point mode (`192.168.4.1`) stays open for first-time install.
+- After a successful Wi-Fi setup, **Open device administration** links to
+  the live mDNS URL (for example `http://sbty-access.local/`), with the
+  IP kept as fallback.
+
+### Files added / used
+
+- `admin_auth.py` — password hashing, sessions, lockout helpers
+- `templates/login.html` — login page
+- `templates/admin_station.html` — lighter permanent admin page (station mode)
+
+### ESP32 memory notes
+
+Classic ESP32 boards have limited RAM shared by MicroPython and Wi-Fi.
+Task 7 therefore:
+
+- Loads `admin_server` / `wifi_portal` **after** Wi-Fi connects (lazy import)
+- Soft-reboots into setup mode when the setup button is held (clean Wi-Fi heap)
+- Serves one admin client at a time with a blocking socket send path
+
+Admin page loads are usable on classic ESP32; ESP32-S3 (more RAM) is a
+smoother drop-in upgrade path for the same MicroPython design. A Raspberry
+Pi would be faster for a rich hub UI but needs a port, not this firmware.
+
+### Acceptance checks
+
+- [x] Protected pages require login
+- [x] Incorrect passwords are rejected
+- [x] Successful login creates a session
+- [x] Logout and inactivity timeout work
+- [x] Repeated failed attempts trigger temporary lockout
 
 ---
 
@@ -666,7 +717,7 @@ mDNS is blocked.
 
 ## Phase 4 (security)
 
-- Administrator login
+- Administrator login → Task 7 (done)
 - HTTPS (future hardware permitting)
 - Per-device setup password
 - Secure credential storage
@@ -702,6 +753,18 @@ mDNS is blocked.
 
 - [x] ESP32 reconnects automatically
 - [x] Setup mode skipped when credentials are valid
+
+---
+
+## Administrator Login (Task 7)
+
+- [x] Unauthenticated visit redirects to `/login`
+- [x] Default password `admin1234` works on first boot
+- [x] Wrong password is rejected
+- [x] Successful login opens the permanent admin hub
+- [x] Logout returns to `/login`
+- [x] Setup AP portal remains usable without admin login
+- [x] Success page admin link uses the mDNS URL
 
 ---
 

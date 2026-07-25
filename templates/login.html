@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Administrator Login</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f1f4f8;
+            color: #1f2937;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 420px;
+            margin: 40px auto;
+        }
+
+        .card {
+            padding: 24px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .subtitle {
+            margin: 0 0 18px;
+            color: #64748b;
+        }
+
+        .label {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        input {
+            width: 100%;
+            margin-bottom: 14px;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .button {
+            display: block;
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .message {
+            margin: 0 0 14px;
+            padding: 12px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 8px;
+            color: #9a3412;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .hint {
+            margin-top: 16px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <section class="card">
+            <h1>Administrator Login</h1>
+
+            <p class="subtitle">
+                {{DEVICE_NAME}}
+            </p>
+
+            {{MESSAGE_HTML}}
+
+            <form method="POST" action="/login">
+                <label class="label" for="password">
+                    Password
+                </label>
+
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    autofocus
+                >
+
+                <button class="button" type="submit">
+                    Log In
+                </button>
+            </form>
+
+            <p class="hint">
+                Default password on first boot: admin1234
+            </p>
+        </section>
+    </main>
+</body>
+</html>

@@ -129,7 +129,17 @@
 
             <div class="row">
                 <span class="label">
-                    Device IP address
+                    Device address
+                </span>
+
+                <span class="value">
+                    {{LOCAL_URL}}
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">
+                    Device IP address (fallback)
                 </span>
 
                 <span class="value">
@@ -139,11 +149,12 @@
         </section>
 
         <div class="notice">
-            The Wi-Fi credentials have been saved. The device will
-            reconnect automatically after restarting.
+            The Wi-Fi credentials have been saved. Rejoin your
+            building Wi-Fi, then open the admin page. The device
+            will reconnect automatically after restarting.
         </div>
 
-        <a href="/admin">
+        <a href="{{LOCAL_URL}}">
             Open device administration
         </a>
     </main>

@@ -34,7 +34,12 @@ import time
 import machine
 import network
 
-from wifi_storage import save_credentials, delete_credentials, load_setup_ap_config
+from wifi_storage import (
+    save_credentials,
+    delete_credentials,
+    load_credentials,
+    load_setup_ap_config,
+)
 
 print("LOADED WIFI PORTAL VERSION 2")
 # ---------------------------------------------------------
@@ -52,6 +57,8 @@ CONNECTING_TEMPLATE = TEMPLATE_FOLDER + "/connecting.html"
 SUCCESS_TEMPLATE = TEMPLATE_FOLDER + "/success.html"
 FAILED_TEMPLATE = TEMPLATE_FOLDER + "/failed.html"
 ADMIN_TEMPLATE = TEMPLATE_FOLDER + "/admin.html"
+ADMIN_STATION_TEMPLATE = TEMPLATE_FOLDER + "/admin_station.html"
+LOGIN_TEMPLATE = TEMPLATE_FOLDER + "/login.html"
 
 
 # ---------------------------------------------------------
@@ -156,14 +163,28 @@ def parse_form_data(body):
 # Template utilities
 # ---------------------------------------------------------
 
+_TEMPLATE_CACHE = {}
+
+
 def load_template(filename):
     """
     Loads an HTML template from the ESP32 filesystem.
+
+    Templates are cached in RAM after the first read so
+    repeated admin/login responses do not hit flash every time.
     """
+
+    cached = _TEMPLATE_CACHE.get(filename)
+
+    if cached is not None:
+        return cached
 
     try:
         with open(filename, "r") as file:
-            return file.read()
+            html = file.read()
+
+        _TEMPLATE_CACHE[filename] = html
+        return html
 
     except OSError as error:
         print("Template loading error:", filename, repr(error))
@@ -288,12 +309,13 @@ def render_connecting_page(ssid):
     )
 
 
-def render_success_page(ssid, ip_address):
+def render_success_page(ssid, ip_address, local_url=""):
     return render_template(
         SUCCESS_TEMPLATE,
         {
             "SSID": html_escape(ssid),
-            "IP_ADDRESS": html_escape(ip_address)
+            "IP_ADDRESS": html_escape(ip_address),
+            "LOCAL_URL": html_escape(local_url)
         }
     )
 
@@ -328,7 +350,22 @@ def get_signal_strength(wifi_manager):
 def get_connected_ssid(wifi_manager):
     """
     Returns the current connected Wi-Fi network name.
+
+    Prefer the saved credentials file. Calling
+    station.config("essid") can block for a long time on some
+    ESP32 MicroPython builds.
     """
+
+    try:
+        credentials = load_credentials()
+
+        if credentials:
+            ssid = credentials.get("ssid")
+
+            if ssid:
+                return ssid
+    except Exception:
+        pass
 
     try:
         config = wifi_manager.station.config("essid")
@@ -357,7 +394,9 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
         connection_status = "Connected"
         ssid = get_connected_ssid(wifi_manager)
         ip_address = wifi_manager.get_ip_address() or "Unavailable"
-        signal_strength = get_signal_strength(wifi_manager)
+        # Skip live RSSI during page render; it can stall the
+        # HTTP response on some boards.
+        signal_strength = "Available"
         mdns_name = wifi_manager.get_mdns_name()
         local_url = wifi_manager.get_local_url()
 
@@ -369,109 +408,45 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
         mdns_name = wifi_manager.get_mdns_name()
         local_url = wifi_manager.get_local_url()
 
+    if mode == "station":
+        setup_ap = load_setup_ap_config()
+
+        print("Rendering station admin page...")
+
+        page = render_template(
+            ADMIN_STATION_TEMPLATE,
+            {
+                "DEVICE_NAME": html_escape(DEVICE_NAME),
+                "CONNECTION_STATUS": html_escape(connection_status),
+                "SSID": html_escape(ssid),
+                "IP_ADDRESS": html_escape(ip_address),
+                "SIGNAL_STRENGTH": html_escape(signal_strength),
+                "MDNS_NAME": html_escape(mdns_name),
+                "LOCAL_URL": html_escape(local_url),
+                "AP_SSID": html_escape(setup_ap["ssid"]),
+                "AP_PASSWORD": html_escape(setup_ap["password"]),
+                "MESSAGE_HTML": build_message_html(message)
+            }
+        )
+
+        print("Station admin page ready:", len(page), "chars")
+        return page
+
     setup_ap = load_setup_ap_config()
     setup_ap_ssid = setup_ap["ssid"]
-    setup_ap_password = setup_ap["password"]
 
-    if mode == "station":
-        wifi_tools = """
-            <p style="color:#64748b;line-height:1.5;margin:0 0 12px;">
-                To change the building Wi-Fi, hold the setup button
-                for five seconds. The device will open its setup
-                Access Point again.
-            </p>
-        """
-        setup_ap_tools = """
-            <section class="card">
-                <h2>Setup Access Point</h2>
-
-                <p style="color:#64748b;line-height:1.5;margin:0 0 12px;">
-                    This is the temporary Wi-Fi network created when
-                    the device enters setup mode.
-                </p>
-
-                {message_html}
-
-                <form method="POST" action="/setup-ap">
-                    <label class="label" for="ap_ssid">
-                        Setup AP name
-                    </label>
-                    <input
-                        id="ap_ssid"
-                        name="ssid"
-                        type="text"
-                        maxlength="32"
-                        required
-                        value="{ap_ssid}"
-                        style="width:100%;padding:12px;margin:0 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;"
-                    >
-
-                    <label class="label" for="ap_password">
-                        Setup AP password
-                    </label>
-                    <input
-                        id="ap_password"
-                        name="password"
-                        type="text"
-                        minlength="8"
-                        maxlength="63"
-                        required
-                        value="{ap_password}"
-                        style="width:100%;padding:12px;margin:0 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px;"
-                    >
-
-                    <button class="button primary" type="submit">
-                        Save Setup AP Settings
-                    </button>
-                </form>
-            </section>
-        """.format(
-            message_html=build_message_html(message),
-            ap_ssid=html_escape(setup_ap_ssid),
-            ap_password=html_escape(setup_ap_password)
-        )
-        product_links = """
-            <section class="card">
-                <h2>Applications</h2>
-
-                <p style="color:#64748b;line-height:1.5;margin:0 0 12px;">
-                    Product pages will appear here as links from this
-                    network hub.
-                </p>
-
-                <a class="button secondary" href="/access">
-                    Access / Users (coming soon)
-                </a>
-            </section>
-        """
-    else:
-        wifi_tools = """
-            <a class="button primary" href="/">
-                Change Wi-Fi Network
-            </a>
-
-            <a class="button secondary" href="/rescan">
-                Scan Nearby Networks
-            </a>
-        """
-        setup_ap_tools = """
-            <section class="card">
-                <h2>Setup Access Point</h2>
-
-                <div class="row">
-                    <span class="label">Setup AP name</span>
-                    <span class="value">{ap_ssid}</span>
-                </div>
-
-                <p style="color:#64748b;line-height:1.5;margin:12px 0 0;">
-                    Change the setup AP name and password from the
-                    permanent admin page after joining building Wi-Fi.
-                </p>
-            </section>
-        """.format(
-            ap_ssid=html_escape(setup_ap_ssid)
-        )
-        product_links = ""
+    wifi_tools = (
+        '<a class="button primary" href="/">Change Wi-Fi Network</a>'
+        '<a class="button secondary" href="/rescan">Scan Nearby Networks</a>'
+    )
+    setup_ap_tools = (
+        '<section class="card"><h2>Setup Access Point</h2>'
+        '<div class="row"><span class="label">Setup AP name</span>'
+        '<span class="value">{}</span></div>'
+        '<p style="color:#64748b;line-height:1.5;margin:12px 0 0;">'
+        'Change the setup AP name and password from the permanent '
+        'admin page after joining building Wi-Fi.</p></section>'
+    ).format(html_escape(setup_ap_ssid))
 
     return render_template(
         ADMIN_TEMPLATE,
@@ -485,7 +460,19 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
             "LOCAL_URL": html_escape(local_url),
             "WIFI_TOOLS": wifi_tools,
             "SETUP_AP_TOOLS": setup_ap_tools,
-            "PRODUCT_LINKS": product_links
+            "ACCOUNT_TOOLS": "",
+            "PRODUCT_LINKS": "",
+            "MESSAGE_HTML": build_message_html(message)
+        }
+    )
+
+
+def render_login_page(message=""):
+    return render_template(
+        LOGIN_TEMPLATE,
+        {
+            "DEVICE_NAME": html_escape(DEVICE_NAME),
+            "MESSAGE_HTML": build_message_html(message)
         }
     )
 
@@ -496,28 +483,92 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
 
 def send_all(client, data):
     """
-    Sends all bytes to the browser in smaller pieces.
+    Sends all bytes to the browser.
 
-    socket.send() is not guaranteed to send the whole response
-    in one operation.
+    Important ESP32 note:
+    Non-blocking sockets (timeout=0) were causing OSError(116)
+    spin loops that sent 0 bytes for ~10 seconds on the second
+    admin page load. Use a blocking socket with a short timeout
+    and retry only while progress is possible.
     """
 
-    total_sent = 0
+    if not data:
+        return 0
+
     data_length = len(data)
 
-    while total_sent < data_length:
-        end_position = total_sent + 512
-        chunk = data[total_sent:end_position]
+    try:
+        client.settimeout(3)
+    except Exception:
+        pass
 
-        sent = client.send(chunk)
+    # Prefer write() when available — MicroPython streams loop
+    # until all bytes are queued or an error occurs.
+    write = getattr(client, "write", None)
+
+    if write is not None:
+        try:
+            written = write(data)
+
+            if written is None:
+                return data_length
+
+            if written >= data_length:
+                return written
+        except OSError as error:
+            print("socket.write failed:", repr(error), "- falling back")
+
+    total_sent = 0
+    stall_count = 0
+
+    while total_sent < data_length:
+        chunk = data[total_sent:total_sent + 512]
+
+        try:
+            sent = client.send(chunk)
+        except OSError as error:
+            errno = getattr(error, "errno", None)
+
+            if errno is None and error.args:
+                errno = error.args[0]
+
+            # Temporary Wi-Fi buffer full / timeout — wait and retry.
+            if errno in (11, 35, 116) and stall_count < 30:
+                stall_count += 1
+                time.sleep_ms(50)
+                continue
+
+            print(
+                "Send error after",
+                total_sent,
+                "of",
+                data_length,
+                "bytes:",
+                repr(error)
+            )
+            raise
 
         if sent is None:
             sent = 0
 
         if sent <= 0:
-            raise OSError("Browser connection closed")
+            stall_count += 1
+
+            if stall_count >= 30:
+                print(
+                    "Send stalled after",
+                    total_sent,
+                    "of",
+                    data_length,
+                    "bytes"
+                )
+                raise OSError(116)
+
+            time.sleep_ms(50)
+            continue
 
         total_sent += sent
+        stall_count = 0
 
     return total_sent
 
@@ -526,14 +577,23 @@ def send_response(
     client,
     body,
     status="200 OK",
-    content_type="text/html; charset=utf-8"
+    content_type="text/html; charset=utf-8",
+    extra_headers=None
 ):
     """
     Sends a complete HTTP response.
     """
 
+    import gc
+
     if isinstance(body, str):
         body = body.encode("utf-8")
+
+    extra = ""
+
+    if extra_headers:
+        for header in extra_headers:
+            extra += header + "\r\n"
 
     headers = (
         "HTTP/1.1 {}\r\n"
@@ -542,15 +602,19 @@ def send_response(
         "Connection: close\r\n"
         "Cache-Control: no-store, no-cache, must-revalidate\r\n"
         "Pragma: no-cache\r\n"
+        "{}"
         "\r\n"
     ).format(
         status,
         content_type,
-        len(body)
+        len(body),
+        extra
     )
 
     header_bytes = headers.encode("utf-8")
+    gc.collect()
 
+    print("Sending", len(header_bytes) + len(body), "bytes...")
     header_count = send_all(client, header_bytes)
     body_count = send_all(client, body)
 
@@ -561,7 +625,7 @@ def send_response(
     )
 
 
-def send_redirect(client, location="/"):
+def send_redirect(client, location="/", extra_headers=None):
     """
     Redirects the browser to another route.
     """
@@ -591,6 +655,12 @@ def send_redirect(client, location="/"):
 
     body_bytes = body.encode("utf-8")
 
+    extra = ""
+
+    if extra_headers:
+        for header in extra_headers:
+            extra += header + "\r\n"
+
     headers = (
         "HTTP/1.1 302 Found\r\n"
         "Location: {}\r\n"
@@ -598,10 +668,12 @@ def send_redirect(client, location="/"):
         "Content-Length: {}\r\n"
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n"
+        "{}"
         "\r\n"
     ).format(
         location,
-        len(body_bytes)
+        len(body_bytes),
+        extra
     )
 
     send_all(client, headers.encode("utf-8"))
@@ -645,7 +717,12 @@ def receive_request(client):
 
     request = b""
 
-    client.settimeout(5)
+    # Keep this aligned with the admin server client timeout so
+    # large pages are not cut off mid-transfer after reading.
+    try:
+        client.settimeout(15)
+    except Exception:
+        pass
 
     # Read until all HTTP headers have arrived.
     while b"\r\n\r\n" not in request:
@@ -806,6 +883,10 @@ def attempt_wifi_connection(
 
             portal_state["status"] = "success"
             portal_state["ip_address"] = ip_address
+            portal_state["local_url"] = result.get(
+                "local_url",
+                wifi_manager.get_local_url()
+            )
             portal_state["message"] = "Connection successful."
 
             # Connected again: stop blinking and go solid.
@@ -815,6 +896,7 @@ def attempt_wifi_connection(
             print("Wi-Fi connection successful")
             print("Router network:", ssid)
             print("ESP32 IP address:", ip_address)
+            print("Local address:", portal_state["local_url"])
 
         else:
             message = result.get(
@@ -862,6 +944,7 @@ def run_setup_server(wifi_manager, status_led=None):
         "ssid": "",
         "message": "",
         "ip_address": "",
+        "local_url": "",
         "success_at": None,
         "success_page_sent_at": None
     }
@@ -1091,7 +1174,11 @@ def run_setup_server(wifi_manager, status_led=None):
 
                             page = render_success_page(
                                 portal_state["ssid"],
-                                portal_state["ip_address"]
+                                portal_state["ip_address"],
+                                portal_state.get(
+                                    "local_url",
+                                    wifi_manager.get_local_url()
+                                )
                             )
 
                             portal_state["success_page_sent_at"] = (

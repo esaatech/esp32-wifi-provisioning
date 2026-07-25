@@ -15,8 +15,18 @@ class WiFiManager:
     def __init__(self, hostname=DEFAULT_HOSTNAME):
         self.hostname = self._sanitize_hostname(hostname)
         self.station = network.WLAN(network.STA_IF)
-        self.access_point = network.WLAN(network.AP_IF)
+        # Create the AP interface only when setup mode needs it.
+        # Holding both interfaces from boot costs Wi-Fi heap.
+        self.access_point = None
         self.apply_hostname()
+
+    # -------------------------------------------------
+
+    def _get_access_point(self):
+        if self.access_point is None:
+            self.access_point = network.WLAN(network.AP_IF)
+
+        return self.access_point
 
     # -------------------------------------------------
 
@@ -92,24 +102,55 @@ class WiFiManager:
         ssid="SBTY-Access-Control-Setup",
         password="setup1234"
     ):
-        self.access_point.active(True)
+        import gc
 
-        self.access_point.config(
+        # AP+STA together needs a lot of IDF heap. Turn the
+        # station completely off before starting setup AP so
+        # boards without spare RAM do not hit WiFi OOM.
+        if self.station.active():
+            try:
+                if self.station.isconnected():
+                    self.station.disconnect()
+                    time.sleep_ms(200)
+            except OSError:
+                pass
+
+            self.station.active(False)
+            time.sleep_ms(300)
+
+        access_point = self._get_access_point()
+
+        if access_point.active():
+            access_point.active(False)
+            time.sleep_ms(200)
+
+        gc.collect()
+
+        access_point.active(True)
+
+        access_point.config(
             essid=ssid,
             password=password,
             authmode=network.AUTH_WPA2_PSK
         )
 
-        while not self.access_point.active():
+        while not access_point.active():
             time.sleep_ms(100)
 
-        return self.access_point.ifconfig()
+        return access_point.ifconfig()
 
     def stop_access_point(self):
+        if self.access_point is None:
+            return
+
         self.access_point.active(False)
 
     def scan_networks(self):
+        import gc
+
+        gc.collect()
         self.station.active(True)
+        time.sleep_ms(200)
 
         results = self.station.scan()
         networks = []
@@ -145,15 +186,34 @@ class WiFiManager:
         return networks
 
     def connect(self, ssid, password, timeout_seconds=15):
+        import gc
+
         # Hostname must be applied before the station connects
         # so DHCP and mDNS pick it up.
         self.apply_hostname()
 
-        self.station.active(True)
+        # Make sure setup AP is not holding Wi-Fi memory.
+        if self.access_point is not None and self.access_point.active():
+            self.access_point.active(False)
+            time.sleep_ms(200)
 
-        if self.station.isconnected():
-            self.station.disconnect()
-            time.sleep_ms(500)
+        gc.collect()
+
+        # Clean radio restart before joining the router.
+        if self.station.active():
+            try:
+                if self.station.isconnected():
+                    self.station.disconnect()
+                    time.sleep_ms(200)
+            except OSError:
+                pass
+
+            self.station.active(False)
+            time.sleep_ms(300)
+
+        gc.collect()
+        self.station.active(True)
+        time.sleep_ms(500)
 
         self.station.connect(ssid, password)
 
@@ -177,15 +237,25 @@ class WiFiManager:
         }
 
     def disconnect(self):
-        if self.station.active() and self.station.isconnected():
-            self.station.disconnect()
-            time.sleep_ms(300)
+        if not self.station.active():
+            return
+
+        try:
+            if self.station.isconnected():
+                self.station.disconnect()
+                time.sleep_ms(300)
+        except OSError:
+            pass
+
+        # Fully release station Wi-Fi memory.
+        self.station.active(False)
+        time.sleep_ms(200)
 
     def is_connected(self):
-        return self.station.isconnected()
+        return self.station.active() and self.station.isconnected()
 
     def get_ip_address(self):
-        if not self.station.isconnected():
+        if not self.is_connected():
             return None
 
         return self.station.ifconfig()[0]
