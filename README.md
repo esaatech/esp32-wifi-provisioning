@@ -141,13 +141,12 @@ The page currently displays:
 - Device IP Address
 - Signal Strength
 
-Future versions will also include:
+Future networking versions will also include:
 
-- Door configuration
-- User management
 - Firmware updates
 - Diagnostics
-- Event logs
+- Configuration backup / restore
+- Stronger transport security (HTTPS where hardware allows)
 
 ---
 
@@ -188,7 +187,7 @@ Responsibilities:
 - Load saved credentials
 - Attempt automatic Wi-Fi connection
 - Start Setup Portal if connection fails
-- Launch the access-control application
+- Start the permanent LAN admin server when connected
 
 ---
 
@@ -302,14 +301,9 @@ Core network section (always present, product-independent):
 - Signal strength
 - Restart / forget Wi-Fi (device network tools)
 
-Then, depending on what this ESP32 product is building, the same home
-page can show links to other feature pages. Examples:
-
-- Access control → Add / delete users, manage UIDs, view access logs
-- Sensor node → Thresholds, calibration, reporting interval
-- Lighting → Zones, schedules, on/off controls
-
-The networking core stays the same; product pages plug in as links.
+Other ESP32 products can reuse this networking hub and add their own
+feature pages as separate links. This repository stays focused on
+Wi-Fi provisioning, LAN admin, and device network tools.
 
 ---
 
@@ -481,6 +475,18 @@ Delete saved Wi-Fi credentials
 
 ✅ Administrator login (Task 7)
 
+⬜ Configuration protection and data integrity (Task 15)
+
+⬜ Secure communications (Task 16)
+
+⬜ Firmware updates (Task 17)
+
+⬜ Watchdog and failure recovery (Task 18)
+
+⬜ Production provisioning (Task 19)
+
+⬜ Production validation (Task 20)
+
 ---
 
 # Planned Improvements
@@ -494,22 +500,19 @@ from a phone or laptop on the same LAN — without USB, Thonny, or the cloud.
 Think of it like a **router admin home page**:
 
 1. **Network core (always there)** — connection status, SSID, IP, signal,
-   restart, change/forget Wi-Fi.
-2. **Product links (added per project)** — shortcuts to other pages for
-   whatever this device is building.
+   restart, change/forget Wi-Fi, setup AP settings.
+2. **Reusable shell** — other ESP32 products can link their own feature
+   pages from this hub later; those product features live in separate
+   projects, not in this networking repository.
 
-Example for access control:
+Example network hub:
 
 ```
-http://192.168.x.x/          ← network status home (router-like)
-  → Access / Users           ← add, delete, disable UIDs
-  → Access logs              ← later
-  → Door settings            ← later
+http://sbty-access.local/    ← network status home (router-like)
+  → Restart / Forget Wi-Fi
+  → Setup AP settings
+  → Administrator account
 ```
-
-The same network home page can later link to different pages for sensors,
-lighting, or other products. Networking stays reusable; product features
-are separate pages linked from the hub.
 
 ### Runtime model
 
@@ -537,38 +540,25 @@ Setup mode (AP + provisioning) stays separate from normal mode
    - `GET /` or `GET /admin` — device and network status (the hub)
    - `POST /restart` — reboot the ESP32
    - `POST /forget-wifi` — delete credentials and return to setup
-5. Leave placeholders / section for product links (empty until a product page exists).
+5. Keep the hub focused on networking tools (status, restart, forget Wi-Fi,
+   setup AP settings, administrator account).
 6. Stop the admin server when entering setup mode; start it again after a
    successful reconnect.
-
-### Phase B — product pages linked from the hub
-
-Once the network hub works on the LAN, add product-specific pages and link
-them from the home page. For access control (toward Task 8):
-
-- `/access` or `/users` — add / list / disable / delete UIDs
-- Store entries in flash (for example `authorized_cards.json`)
-- Home page shows a link: **Access / Users**
-
-Other products would add their own links the same way without changing the
-network core.
 
 ### Why this shape
 
 | Choice | Reason |
 |--------|--------|
-| Network hub first (router-like) | Every product needs status + Wi-Fi tools |
-| Product features as separate linked pages | Access control, sensors, lighting can share the same networking shell |
+| Network hub first (router-like) | Every ESP32 product needs status + Wi-Fi tools |
 | Separate admin server (not stuck in setup portal) | Setup portal exits after provisioning; admin must live in normal mode |
-| Non-blocking `accept()` | Setup button, LED, and later RFID keep running |
+| Non-blocking `accept()` | Setup button and status LED keep running |
 | Config as web forms → JSON on flash | Works offline; no cloud required |
 
 ### Out of scope for Task 5 (later Asana tasks)
 
 - ~~Stable hostname such as `sbty-access.local` → Task 6~~ (done)
 - ~~Administrator login / sessions → Task 7~~ (done)
-- Full user and UID management UI → Task 8
-- Enroll-by-scan with the PN532 → Task 9
+- Product-specific feature pages (users, readers, doors, etc.) → separate projects
 
 ### Acceptance checks
 
@@ -710,8 +700,8 @@ Pi would be faster for a rich hub UI but needs a port, not this firmware.
 
 - Change Wi-Fi from the permanent admin page
 - Firmware updates
-- Access logs
-- Broader user / credential management
+- Configuration backup / restore
+- Diagnostics and health status
 
 ---
 
@@ -806,7 +796,8 @@ The project also includes:
 * a status LED that shows whether the ESP32 is connected;
 * an administration page showing current network information.
 
-This networking system is currently being developed as a standalone subsystem. It does not depend on the access-control card reader, relay, LCD, or user database.
+This networking system is a standalone subsystem. It does not depend on
+product-specific hardware such as card readers, relays, or user databases.
 
 ⸻
 

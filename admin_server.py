@@ -356,27 +356,6 @@ class AdminServer:
                         status="500 Internal Server Error"
                     )
 
-            elif method == "GET" and path == "/access":
-                send_response(
-                    client,
-                    """<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Access / Users</title>
-</head>
-<body>
-    <h1>Access / Users</h1>
-    <p>
-        User and UID management will be added in a later task.
-    </p>
-    <p><a href="/">Back to admin</a></p>
-</body>
-</html>
-"""
-                )
-
             elif method == "POST" and path == "/restart":
                 send_response(
                     client,
