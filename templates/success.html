@@ -8,6 +8,10 @@
         content="width=device-width, initial-scale=1"
     >
 
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
     <title>Connection Successful</title>
 
     <style>
@@ -94,13 +98,35 @@
             border-radius: 8px;
             color: #1e40af;
             font-size: 14px;
+            text-align: left;
         }
 
-        a {
+        .notice ol {
+            margin: 8px 0 0;
+            padding-left: 18px;
+        }
+
+        .notice li {
+            margin-bottom: 6px;
+        }
+
+        a.primary {
             display: block;
             margin-top: 22px;
+            padding: 13px;
+            border-radius: 8px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        a.secondary {
+            display: block;
+            margin-top: 12px;
             color: #2563eb;
             text-decoration: none;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -149,13 +175,20 @@
         </section>
 
         <div class="notice">
-            The Wi-Fi credentials have been saved. Rejoin your
-            building Wi-Fi, then open the admin page. The device
-            will reconnect automatically after restarting.
+            Do this before opening admin (avoids browser caching a failed load):
+            <ol>
+                <li>Leave the ESP32 setup Wi-Fi</li>
+                <li>Rejoin <strong>{{SSID}}</strong></li>
+                <li>Then tap the button below</li>
+            </ol>
         </div>
 
-        <a href="{{LOCAL_URL}}">
+        <a class="primary" href="{{IP_URL}}">
             Open device administration
+        </a>
+
+        <a class="secondary" href="{{LOCAL_URL}}">
+            Or try hostname link
         </a>
     </main>
 </body>

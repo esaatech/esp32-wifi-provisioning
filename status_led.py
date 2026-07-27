@@ -3,7 +3,13 @@ status_led.py
 
 Controls the ESP32 networking status LED.
 
-GPIO 2 onboard LED:
+GPIO selection:
+    Classic ESP32 DevKit onboard LED: GPIO 2
+    ESP32-S3 DevKits often have no simple blue LED on GPIO 2.
+    GPIO 2 is still a valid output pin on S3; wire an external
+    LED there if the board has no onboard status LED.
+
+Behaviour:
 
     Blinking  = Wi-Fi disconnected or setup mode
     Solid ON  = Wi-Fi connected
@@ -27,7 +33,9 @@ class StatusLED:
             value=self._off_value()
         )
 
-        self.timer = Timer(-1)
+        # Use a hardware timer ID. Timer(-1) is rejected on newer
+        # ESP32-S3 MicroPython builds; IDs 0-3 are valid on S3.
+        self.timer = Timer(0)
         self.is_blinking = False
 
     # -------------------------------------------------

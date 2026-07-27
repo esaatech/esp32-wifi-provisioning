@@ -310,12 +310,23 @@ def render_connecting_page(ssid):
 
 
 def render_success_page(ssid, ip_address, local_url=""):
+    # Cache-bust query so browsers do not reuse a failed/stale admin page.
+    bust = time.ticks_ms()
+    mdns_url = (local_url or "").rstrip("/")
+    ip_url = "http://{}".format(ip_address) if ip_address else ""
+
+    if mdns_url:
+        mdns_url = "{}/login?v={}".format(mdns_url, bust)
+    if ip_url:
+        ip_url = "{}/login?v={}".format(ip_url, bust)
+
     return render_template(
         SUCCESS_TEMPLATE,
         {
             "SSID": html_escape(ssid),
             "IP_ADDRESS": html_escape(ip_address),
-            "LOCAL_URL": html_escape(local_url)
+            "LOCAL_URL": html_escape(mdns_url),
+            "IP_URL": html_escape(ip_url),
         }
     )
 
@@ -600,8 +611,9 @@ def send_response(
         "Content-Type: {}\r\n"
         "Content-Length: {}\r\n"
         "Connection: close\r\n"
-        "Cache-Control: no-store, no-cache, must-revalidate\r\n"
+        "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
         "Pragma: no-cache\r\n"
+        "Expires: 0\r\n"
         "{}"
         "\r\n"
     ).format(
@@ -667,7 +679,9 @@ def send_redirect(client, location="/", extra_headers=None):
         "Content-Type: text/html; charset=utf-8\r\n"
         "Content-Length: {}\r\n"
         "Connection: close\r\n"
-        "Cache-Control: no-store\r\n"
+        "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n"
+        "Pragma: no-cache\r\n"
+        "Expires: 0\r\n"
         "{}"
         "\r\n"
     ).format(

@@ -5,7 +5,14 @@ Monitors the dedicated Wi-Fi setup button.
 
 Hardware
 --------
-GPIO27 ---- Push Button ---- GND
+Classic ESP32 DevKit:
+    GPIO27 ---- Push Button ---- GND
+
+ESP32-S3 (Octal PSRAM / N16R8):
+    GPIO27 is reserved for flash/PSRAM and cannot be used.
+    Use GPIO4 instead:
+
+    GPIO4 ---- Push Button ---- GND
 
 The ESP32 internal pull-up resistor is used.
 
@@ -18,13 +25,29 @@ Pressed:
 
 from machine import Pin
 import time
+import sys
 
 
 # -------------------------------------------------
 # Configuration
 # -------------------------------------------------
 
-SETUP_BUTTON_PIN = 27
+def _default_setup_button_pin():
+    machine_name = ""
+
+    try:
+        machine_name = str(sys.implementation._machine)
+    except Exception:
+        pass
+
+    # GPIO 26-37 are reserved on ESP32-S3 with flash/PSRAM.
+    if "S3" in machine_name or "s3" in machine_name:
+        return 4
+
+    return 27
+
+
+SETUP_BUTTON_PIN = _default_setup_button_pin()
 HOLD_TIME_MS = 5000
 
 
