@@ -36,7 +36,7 @@ Example:
 
 ```
 SSID:
-SBTY-Access-Control-Setup
+Esaatech-Setup
 
 Password:
 setup1234
@@ -320,7 +320,7 @@ ESP32 starts Setup Access Point
 
 Installer connects to
 
-SBTY-Access-Control-Setup
+Esaatech-Setup
 
 ↓
 
@@ -508,7 +508,7 @@ Think of it like a **router admin home page**:
 Example network hub:
 
 ```
-http://sbty-access.local/    ← network status home (router-like)
+http://esaatech-access.local/    ← network status home (router-like)
   → Restart / Forget Wi-Fi
   → Setup AP settings
   → Administrator account
@@ -556,7 +556,7 @@ Setup mode (AP + provisioning) stays separate from normal mode
 
 ### Out of scope for Task 5 (later Asana tasks)
 
-- ~~Stable hostname such as `sbty-access.local` → Task 6~~ (done)
+- ~~Stable hostname such as `esaatech-access.local` → Task 6~~ (done)
 - ~~Administrator login / sessions → Task 7~~ (done)
 - Product-specific feature pages (users, readers, doors, etc.) → separate projects
 
@@ -577,10 +577,10 @@ hunting for a changing DHCP IP address.
 
 ### What the firmware does
 
-1. Sets the LAN hostname to `sbty-access` **before** connecting to Wi-Fi.
+1. Sets the LAN hostname to `esaatech-access` **before** connecting to Wi-Fi.
 2. Advertises that name over:
-   - DHCP (so the router may show `sbty-access` in its client list)
-   - mDNS (so many phones/laptops can open `http://sbty-access.local/`)
+   - DHCP (so the router may show `esaatech-access` in its client list)
+   - mDNS (so many phones/laptops can open `http://esaatech-access.local/`)
 3. Keeps showing the current IP on the admin page as a fallback.
 4. Prints both URLs in the serial log after connect.
 
@@ -589,7 +589,7 @@ hunting for a changing DHCP IP address.
 Preferred:
 
 ```
-http://sbty-access.local/
+http://esaatech-access.local/
 ```
 
 Fallback (always works on the same LAN if you know the IP):
@@ -620,17 +620,17 @@ mDNS is blocked.
    (wording varies by brand).
 4. Create a reservation for this ESP32:
    - Use the device MAC address if the router shows it
-   - Or reserve by the current hostname `sbty-access` / current IP
+   - Or reserve by the current hostname `esaatech-access` / current IP
 5. Save the reservation and reboot the ESP32 once.
 6. Confirm the same IP returns after restart.
 7. Label the device with:
-   - `http://sbty-access.local/`
+   - `http://esaatech-access.local/`
    - reserved IP, for example `http://192.168.1.50/`
 
 ### Acceptance checks
 
-- [x] Device hostname is `sbty-access`
-- [x] Admin page shows `http://sbty-access.local/` and the IP fallback
+- [x] Device hostname is `esaatech-access`
+- [x] Admin page shows `http://esaatech-access.local/` and the IP fallback
 - [x] Serial log prints both the local URL and the IP URL
 - [x] DHCP reservation steps are documented for installers
 
@@ -643,17 +643,17 @@ change device settings.
 
 ### Behavior
 
-- Visiting `http://sbty-access.local/` (or the device IP) redirects to
+- Visiting `http://esaatech-access.local/` (or the device IP) redirects to
   `/login` until signed in.
 - Default first-boot password: `admin1234` (change it from the admin page).
 - Password is stored as a salted SHA-256 hash in `admin_auth.json`.
-- Successful login creates a session cookie (`sbty_session`).
+- Successful login creates a session cookie (`esaatech_session`).
 - Sessions expire after 10 minutes of inactivity.
 - Logout clears the session.
 - After 5 failed logins, the device locks for 60 seconds.
 - Setup Access Point mode (`192.168.4.1`) stays open for first-time install.
 - After a successful Wi-Fi setup, **Open device administration** links to
-  the live mDNS URL (for example `http://sbty-access.local/`), with the
+  the live mDNS URL (for example `http://esaatech-access.local/`), with the
   IP kept as fallback.
 
 ### Files added / used
@@ -879,13 +879,13 @@ Holding the button for five seconds starts the Wi-Fi setup portal. Existing cred
 3. While disconnected or connecting, the status LED blinks.
 4. When connected, the LED becomes solid.
 5. If connection fails, the ESP32 starts its setup Access Point.
-6. The installer connects to `SBTY-Access-Control-Setup`.
+6. The installer connects to `Esaatech-Setup`.
 7. The installer opens `192.168.4.1`.
 8. The ESP32 tests the submitted credentials.
 9. Successful credentials are saved and the LED becomes solid.
 10. Failed credentials are not saved and the LED continues blinking.
 11. After a successful connection, a permanent admin page stays available on the LAN.
-12. Preferred admin URL: `http://sbty-access.local/` (device IP remains the fallback).
+12. Preferred admin URL: `http://esaatech-access.local/` (device IP remains the fallback).
 
 ## Optional LED Integration
 

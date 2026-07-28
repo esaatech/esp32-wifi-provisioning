@@ -46,7 +46,7 @@ print("LOADED WIFI PORTAL VERSION 2")
 # Portal configuration
 # ---------------------------------------------------------
 
-DEVICE_NAME = "SBTY Access Controller"
+DEVICE_NAME = "Esaatech Access Controller"
 PORTAL_IP = "192.168.4.1"
 SERVER_PORT = 80
 
@@ -433,6 +433,9 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
                 "IP_ADDRESS": html_escape(ip_address),
                 "SIGNAL_STRENGTH": html_escape(signal_strength),
                 "MDNS_NAME": html_escape(mdns_name),
+                "HOSTNAME": html_escape(
+                    wifi_manager.get_hostname()
+                ),
                 "LOCAL_URL": html_escape(local_url),
                 "AP_SSID": html_escape(setup_ap["ssid"]),
                 "AP_PASSWORD": html_escape(setup_ap["password"]),

@@ -4,15 +4,21 @@ import network
 import time
 
 
-# LAN hostname advertised over DHCP and mDNS.
-# The admin page is reachable at http://sbty-access.local/
-# when mDNS is supported on the client.
-DEFAULT_HOSTNAME = "sbty-access"
+# Default LAN hostname for DHCP / mDNS (.local).
+# Override via hostname.json / the admin page editor.
+DEFAULT_HOSTNAME = "esaatech-access"
 
 
 class WiFiManager:
 
-    def __init__(self, hostname=DEFAULT_HOSTNAME):
+    def __init__(self, hostname=None):
+        if hostname is None:
+            try:
+                from wifi_storage import load_hostname
+                hostname = load_hostname()
+            except Exception:
+                hostname = DEFAULT_HOSTNAME
+
         self.hostname = self._sanitize_hostname(hostname)
         self.station = network.WLAN(network.STA_IF)
         # Create the AP interface only when setup mode needs it.
@@ -99,7 +105,7 @@ class WiFiManager:
 
     def start_access_point(
         self,
-        ssid="SBTY-Access-Control-Setup",
+        ssid="Esaatech-Setup",
         password="setup1234"
     ):
         import gc

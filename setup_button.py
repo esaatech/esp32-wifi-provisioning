@@ -10,9 +10,12 @@ Classic ESP32 DevKit:
 
 ESP32-S3 (Octal PSRAM / N16R8):
     GPIO27 is reserved for flash/PSRAM and cannot be used.
-    Use GPIO4 instead:
+    Use GPIO38 (right-side header pin labeled 38):
 
-    GPIO4 ---- Push Button ---- GND
+    GPIO38 ---- Push Button ---- GND
+
+    Note: on some DevKitC-1 boards GPIO38 also drives the
+    onboard RGB LED; a press may briefly affect the LED.
 
 The ESP32 internal pull-up resistor is used.
 
@@ -41,8 +44,9 @@ def _default_setup_button_pin():
         pass
 
     # GPIO 26-37 are reserved on ESP32-S3 with flash/PSRAM.
+    # GPIO38 is the right-side header pin labeled "38".
     if "S3" in machine_name or "s3" in machine_name:
-        return 4
+        return 38
 
     return 27
 

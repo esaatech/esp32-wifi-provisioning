@@ -9,7 +9,11 @@ import socket
 import time
 import machine
 
-from wifi_storage import delete_credentials, save_setup_ap_config
+from wifi_storage import (
+    delete_credentials,
+    save_setup_ap_config,
+    save_hostname,
+)
 from wifi_portal import (
     render_admin_page,
     render_login_page,
@@ -297,6 +301,48 @@ class AdminServer:
                         self.wifi_manager,
                         mode="station",
                         message="Could not save setup AP settings."
+                    )
+                    send_response(
+                        client,
+                        page,
+                        status="500 Internal Server Error"
+                    )
+
+            elif method == "POST" and path == "/hostname":
+                body = get_request_body(request)
+                form = parse_form_data(body)
+                hostname = form.get("hostname", "").strip()
+
+                try:
+                    saved = save_hostname(hostname)
+                    self.wifi_manager.apply_hostname(saved)
+                    print("Hostname saved:", saved)
+
+                    send_response(
+                        client,
+                        _simple_page(
+                            "Local Address Updated",
+                            "Saved as http://{}.local/. "
+                            "The device is restarting so the "
+                            "new name takes effect.".format(saved)
+                        )
+                    )
+                    self._pending_action = "restart"
+
+                except ValueError as error:
+                    page = render_admin_page(
+                        self.wifi_manager,
+                        mode="station",
+                        message=str(error)
+                    )
+                    send_response(client, page)
+
+                except Exception as error:
+                    print("Could not save hostname:", repr(error))
+                    page = render_admin_page(
+                        self.wifi_manager,
+                        mode="station",
+                        message="Could not save local address."
                     )
                     send_response(
                         client,

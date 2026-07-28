@@ -19,7 +19,7 @@ except ImportError:
 
 AUTH_FILE = "admin_auth.json"
 DEFAULT_PASSWORD = "admin1234"
-SESSION_COOKIE = "sbty_session"
+SESSION_COOKIE = "esaatech_session"
 SESSION_TIMEOUT_MS = 10 * 60 * 1000
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_MS = 60 * 1000

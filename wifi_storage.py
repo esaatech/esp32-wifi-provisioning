@@ -4,9 +4,11 @@ import json
 
 WIFI_CONFIG_FILE = "wifi_config.json"
 SETUP_AP_CONFIG_FILE = "setup_ap.json"
+HOSTNAME_CONFIG_FILE = "hostname.json"
 
-DEFAULT_SETUP_AP_SSID = "SBTY-Access-Control-Setup"
+DEFAULT_SETUP_AP_SSID = "Esaatech-Setup"
 DEFAULT_SETUP_AP_PASSWORD = "setup1234"
+DEFAULT_HOSTNAME = "esaatech-access"
 
 
 def save_credentials(ssid, password):
@@ -102,3 +104,61 @@ def save_setup_ap_config(ssid, password):
         json.dump(config, file)
 
     return config
+
+
+def _sanitize_hostname(hostname):
+    name = (hostname or "").strip().lower()
+
+    cleaned = []
+
+    for character in name:
+        if (
+            ("a" <= character <= "z")
+            or ("0" <= character <= "9")
+            or character == "-"
+        ):
+            cleaned.append(character)
+
+    name = "".join(cleaned).strip("-")
+
+    if not name:
+        raise ValueError(
+            "Local name is required. Use letters, numbers, and hyphens."
+        )
+
+    if len(name) > 32:
+        raise ValueError("Local name must be 32 characters or fewer.")
+
+    return name
+
+
+def load_hostname():
+    """
+    Returns the saved LAN hostname (without .local).
+    """
+
+    try:
+        with open(HOSTNAME_CONFIG_FILE, "r") as file:
+            config = json.load(file)
+
+        return _sanitize_hostname(config.get("hostname"))
+
+    except (OSError, ValueError):
+        return DEFAULT_HOSTNAME
+
+
+def save_hostname(hostname):
+    """
+    Saves the LAN hostname used for DHCP / mDNS (.local).
+    """
+
+    name = _sanitize_hostname(hostname)
+
+    config = {
+        "hostname": name
+    }
+
+    with open(HOSTNAME_CONFIG_FILE, "w") as file:
+        json.dump(config, file)
+
+    return name
