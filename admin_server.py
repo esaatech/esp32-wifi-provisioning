@@ -16,6 +16,7 @@ from wifi_storage import (
 )
 from wifi_portal import (
     render_admin_page,
+    render_dashboard_page,
     render_login_page,
     receive_request,
     parse_request_line,
@@ -104,10 +105,10 @@ class AdminServer:
 
         ip_address = self.wifi_manager.get_ip_address()
 
-        print("Permanent admin page available at:")
+        print("Dashboard available at:")
         print("  {}".format(self.wifi_manager.get_local_url()))
         print("  http://{}/".format(ip_address))
-        print("Admin login required.")
+        print("Admin settings at /admin (login required).")
 
     # -------------------------------------------------
 
@@ -255,7 +256,15 @@ class AdminServer:
                     send_redirect(client, "/login")
                     return True
 
-            if method == "GET" and path in ("/", "/admin"):
+            if method == "GET" and path == "/":
+                import gc
+                gc.collect()
+                print("Building dashboard page...")
+                page = render_dashboard_page(self.wifi_manager)
+                send_response(client, page)
+                print("Dashboard page sent.")
+
+            elif method == "GET" and path == "/admin":
                 import gc
                 gc.collect()
                 print("Building admin page...")

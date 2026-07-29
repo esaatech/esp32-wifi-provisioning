@@ -58,6 +58,7 @@ SUCCESS_TEMPLATE = TEMPLATE_FOLDER + "/success.html"
 FAILED_TEMPLATE = TEMPLATE_FOLDER + "/failed.html"
 ADMIN_TEMPLATE = TEMPLATE_FOLDER + "/admin.html"
 ADMIN_STATION_TEMPLATE = TEMPLATE_FOLDER + "/admin_station.html"
+DASHBOARD_TEMPLATE = TEMPLATE_FOLDER + "/dashboard.html"
 LOGIN_TEMPLATE = TEMPLATE_FOLDER + "/login.html"
 
 
@@ -388,6 +389,36 @@ def get_connected_ssid(wifi_manager):
         pass
 
     return "Unknown"
+
+
+def render_dashboard_page(wifi_manager):
+    """
+    Permanent LAN dashboard (product surface).
+
+    Phase 1: shared shell + placeholder. Product modes come later.
+    """
+
+    connected = wifi_manager.is_connected()
+
+    if connected:
+        connection_status = "Online"
+        status_pill_class = ""
+        ip_address = wifi_manager.get_ip_address() or "Unavailable"
+    else:
+        connection_status = "Offline"
+        status_pill_class = "off"
+        ip_address = "Unavailable"
+
+    return render_template(
+        DASHBOARD_TEMPLATE,
+        {
+            "DEVICE_NAME": html_escape(DEVICE_NAME),
+            "CONNECTION_STATUS": html_escape(connection_status),
+            "STATUS_PILL_CLASS": status_pill_class,
+            "MDNS_NAME": html_escape(wifi_manager.get_mdns_name()),
+            "IP_ADDRESS": html_escape(ip_address),
+        }
+    )
 
 
 def render_admin_page(wifi_manager, mode="setup", message=""):

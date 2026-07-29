@@ -11,6 +11,12 @@
         *{box-sizing:border-box}
         body{margin:0;padding:20px;font-family:Arial,sans-serif;background:#f1f4f8;color:#1f2937}
         .container{width:100%;max-width:480px;margin:30px auto}
+        .nav{
+            display:flex;align-items:center;justify-content:space-between;
+            gap:12px;margin-bottom:14px
+        }
+        .nav-back{color:#1d4ed8;font-size:14px;font-weight:700;text-decoration:none}
+        .nav-brand{margin:0;color:#64748b;font-size:13px;font-weight:700}
         .header,.card{margin-bottom:16px;padding:22px;background:#fff;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
         h1{margin:0 0 7px;font-size:26px}
         h2{margin-top:0;font-size:19px}
@@ -49,6 +55,11 @@
 </head>
 <body>
 <main class="container">
+    <nav class="nav">
+        <a class="nav-back" href="/">← Dashboard</a>
+        <p class="nav-brand">Esaatech Admin</p>
+    </nav>
+
     <section class="header">
         <h1>Device Administration</h1>
         <p class="subtitle">{{DEVICE_NAME}}</p>
