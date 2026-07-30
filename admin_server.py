@@ -13,10 +13,13 @@ from wifi_storage import (
     delete_credentials,
     save_setup_ap_config,
     save_hostname,
+    save_product_config,
+    load_product_config,
 )
 from wifi_portal import (
     render_admin_page,
     render_dashboard_page,
+    render_test_page,
     render_login_page,
     receive_request,
     parse_request_line,
@@ -77,6 +80,18 @@ class AdminServer:
         self._pending_action = None
         self._wifi_lost_count = 0
         self.auth = AdminAuth()
+        self.test_outputs = None
+
+    # -------------------------------------------------
+
+    def _get_test_outputs(self):
+        if self.test_outputs is None:
+            from test_outputs import TestOutputs
+
+            self.test_outputs = TestOutputs()
+            print("Test outputs ready on pins:", self.test_outputs.allowed_pins())
+
+        return self.test_outputs
 
     # -------------------------------------------------
 
@@ -275,6 +290,91 @@ class AdminServer:
                 print("Sending admin page...")
                 send_response(client, page)
                 print("Admin page sent.")
+
+            elif method == "GET" and path == "/test":
+                if not load_product_config().get("test_mode"):
+                    send_redirect(client, "/")
+                    return True
+
+                page = render_test_page(self._get_test_outputs())
+                send_response(client, page)
+
+            elif method == "POST" and path == "/test":
+                if not load_product_config().get("test_mode"):
+                    send_redirect(client, "/")
+                    return True
+
+                body = get_request_body(request)
+                form = parse_form_data(body)
+                pin = form.get("pin", "").strip()
+                state = form.get("state", "").strip().lower()
+
+                try:
+                    on = state in ("on", "1", "true")
+                    self._get_test_outputs().set_output(pin, on)
+                    message = "GPIO {} set {}.".format(
+                        pin,
+                        "ON" if on else "OFF"
+                    )
+                    page = render_test_page(
+                        self._get_test_outputs(),
+                        message=message
+                    )
+                    send_response(client, page)
+
+                except ValueError as error:
+                    page = render_test_page(
+                        self._get_test_outputs(),
+                        message=str(error)
+                    )
+                    send_response(client, page)
+
+                except Exception as error:
+                    print("Test output error:", repr(error))
+                    page = render_test_page(
+                        self._get_test_outputs(),
+                        message="Could not change that pin."
+                    )
+                    send_response(
+                        client,
+                        page,
+                        status="500 Internal Server Error"
+                    )
+
+            elif method == "POST" and path == "/product":
+                body = get_request_body(request)
+                form = parse_form_data(body)
+                test_mode = form.get("test_mode", "off").strip().lower()
+                enabled = test_mode in ("on", "1", "true")
+
+                try:
+                    save_product_config(enabled)
+                    print("Test mode saved:", enabled)
+                    message = (
+                        "Test outputs enabled. Open the dashboard "
+                        "for the Test link."
+                        if enabled
+                        else "Test outputs disabled."
+                    )
+                    page = render_admin_page(
+                        self.wifi_manager,
+                        mode="station",
+                        message=message
+                    )
+                    send_response(client, page)
+
+                except Exception as error:
+                    print("Could not save product config:", repr(error))
+                    page = render_admin_page(
+                        self.wifi_manager,
+                        mode="station",
+                        message="Could not save test setting."
+                    )
+                    send_response(
+                        client,
+                        page,
+                        status="500 Internal Server Error"
+                    )
 
             elif method == "POST" and path == "/setup-ap":
                 body = get_request_body(request)

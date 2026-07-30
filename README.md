@@ -129,24 +129,65 @@ No user interaction is required.
 
 ---
 
+## Dashboard and Admin (template model)
+
+After the device joins building Wi-Fi and you log in:
+
+| URL | Purpose |
+|-----|---------|
+| `/` | **Product dashboard** — customize per product |
+| `/admin` | **Fixed networking admin** — Wi-Fi, hostname, passwords, restart |
+| `/test` | **Optional test outputs page** (only when enabled) |
+
+Admin is always the same across products. Only the dashboard changes for
+access control, home automation, or other Esaatech devices.
+
+### Test mode (Task 21)
+
+Use this to verify local HTTP control before building a real product UI.
+
+1. Open **Admin**
+2. Find **Test outputs**
+3. Choose **On — show Test link on dashboard** and save  
+   (or **Off** to hide it)
+4. Return to the **Dashboard** — when On, open **Open test outputs →**
+5. Toggle the test pins from that page
+
+**Test output pins (ESP32-S3 breadboard):**
+
+| GPIO | Typical use |
+|------|-------------|
+| **16** | LED / buzzer / digital load |
+| **42** | LED / buzzer / digital load |
+| **47** | LED / buzzer / digital load |
+
+These are separate from the **status LED (GPIO 2)** and the **setup button
+(GPIO 38 on S3, GPIO 27 on classic ESP32)**. Wire active-high loads as
+`GPIO → device → GND` (use a resistor with LEDs).
+
+When test mode is Off, the dashboard link is hidden and `/test` redirects
+home.
+
+---
+
 ## Administration Page
 
-After successfully connecting, the ESP32 displays an Administration page.
+The **Admin** page (`/admin`) shows network status and device settings:
 
-The page currently displays:
-
-- Device Name
-- Connection Status
+- Device name / connection status
 - Connected Wi-Fi
-- Device IP Address
-- Signal Strength
+- Local address (`.local`, editable) and IP fallback
+- Setup Access Point name/password
+- Test outputs on/off
+- Administrator password change
+- Restart / Forget Wi-Fi
 
-Future networking versions will also include:
+Future networking versions may also include:
 
-- Firmware updates
+- Firmware / app updates without USB
 - Diagnostics
 - Configuration backup / restore
-- Stronger transport security (HTTPS where hardware allows)
+- Stronger transport security notes (HTTPS / gateway)
 
 ---
 
@@ -161,7 +202,25 @@ wifi_storage.py
 
 wifi_portal.py
 
+admin_server.py
+
+admin_auth.py
+
+test_outputs.py
+
+setup_button.py
+
+status_led.py
+
 templates/
+
+    dashboard.html
+
+    admin_station.html
+
+    test.html
+
+    login.html
 
     index.html
 
@@ -172,6 +231,12 @@ templates/
     failed.html
 
     admin.html
+
+docs/
+
+    ESP32-S3-DEV-GUIDE.md
+
+    HTTP-vs-MQTT.md
 ```
 
 ---
@@ -461,7 +526,7 @@ Delete saved Wi-Fi credentials
 
 ✅ Automatic reconnection
 
-✅ Setup button recovery mode (GPIO 27)
+✅ Setup button recovery mode (GPIO 27 classic / GPIO 38 on ESP32-S3)
 
 ✅ Status LED indicator (GPIO 2: blink / solid)
 
@@ -475,17 +540,40 @@ Delete saved Wi-Fi credentials
 
 ✅ Administrator login (Task 7)
 
-⬜ Configuration protection and data integrity (Task 15)
+✅ Dashboard shell + separate Admin page
 
-⬜ Secure communications (Task 16)
+✅ Local HTTP test outputs (Task 21) — GPIO 16 / 42 / 47
 
-⬜ Firmware updates (Task 17)
+✅ Compare HTTP and MQTT (Task 22) — see `docs/HTTP-vs-MQTT.md`
 
-⬜ Watchdog and failure recovery (Task 18)
+✅ EMQX Cloud broker deployed and pub/sub verified (Task 23)
+
+⬜ Connect ESP32 to MQTT over TLS (Task 24) — **next**
+
+⬜ Remote LED / GPIO control via MQTT (Task 25)
+
+⬜ Report device state over MQTT (Task 26)
+
+⬜ Production hardening bundle (Task 31: config integrity, HTTP LAN security notes, field updates, watchdog leftovers)
 
 ⬜ Production provisioning (Task 19)
 
 ⬜ Production validation (Task 20)
+
+---
+
+## Cloud MQTT (Tasks 22–24)
+
+Local HTTP (`/` / `/admin` / `/test`) stays the on-LAN control path.
+
+MQTT adds Internet messaging through a broker:
+
+1. **Task 22** — when to use HTTP vs MQTT (`docs/HTTP-vs-MQTT.md`)
+2. **Task 23** — EMQX Cloud Serverless broker + credentials + laptop pub/sub test (done)
+3. **Task 24** — ESP32 becomes a persistent TLS MQTT client (subscribe + auto-reconnect)
+
+Broker connection details (no password in git): host and TLS port live in the
+EMQX Cloud console; device credentials stay on the board in a local config file.
 
 ---
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Test outputs · Esaatech</title>
+    <style>
+        *{box-sizing:border-box}
+        body{
+            margin:0;min-height:100vh;color:#0f172a;
+            font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+            background:
+                radial-gradient(1200px 500px at 10% -10%,#dbeafe 0%,transparent 55%),
+                #f8fafc;
+        }
+        .shell{width:100%;max-width:520px;margin:0 auto;padding:18px 18px 28px}
+        .nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+        .nav a{color:#1d4ed8;font-size:14px;font-weight:700;text-decoration:none}
+        .brand{margin:0;font-size:13px;font-weight:700;color:#64748b}
+        .card{margin-bottom:14px;padding:20px;background:#fff;border-radius:14px;box-shadow:0 6px 18px rgba(15,23,42,.06)}
+        h1{margin:0 0 8px;font-size:24px;letter-spacing:-.02em}
+        .hint{margin:0;color:#64748b;line-height:1.5;font-size:14px}
+        .pin-row{
+            display:flex;align-items:center;justify-content:space-between;gap:12px;
+            padding:14px 0;border-bottom:1px solid #e2e8f0
+        }
+        .pin-row:last-child{border-bottom:none;padding-bottom:0}
+        .pin-row:first-child{padding-top:0}
+        .pin-label{font-weight:800}
+        .pin-state{display:block;margin-top:4px;font-size:13px;color:#64748b}
+        .pin-state.on{color:#166534;font-weight:700}
+        .actions{display:flex;gap:8px}
+        .button{
+            display:inline-block;padding:10px 14px;border:none;border-radius:8px;
+            font-size:14px;font-weight:700;cursor:pointer;text-decoration:none
+        }
+        .on{background:#16a34a;color:#fff}
+        .off{background:#e2e8f0;color:#1e293b}
+        .message{margin:0 0 14px;padding:12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;color:#065f46;font-size:14px}
+    </style>
+</head>
+<body>
+<main class="shell">
+    <nav class="nav">
+        <a href="/">← Dashboard</a>
+        <p class="brand">Test outputs</p>
+    </nav>
+
+    <section class="card">
+        <h1>GPIO test page</h1>
+        <p class="hint">
+            Toggle pins 16, 42, and 47 for LED / buzzer experiments.
+            Enable or disable this page from Admin.
+        </p>
+    </section>
+
+    {{MESSAGE_HTML}}
+
+    <section class="card">
+        {{PIN_CONTROLS}}
+    </section>
+</main>
+</body>
+</html>

@@ -39,6 +39,7 @@ from wifi_storage import (
     delete_credentials,
     load_credentials,
     load_setup_ap_config,
+    load_product_config,
 )
 
 print("LOADED WIFI PORTAL VERSION 2")
@@ -60,6 +61,7 @@ ADMIN_TEMPLATE = TEMPLATE_FOLDER + "/admin.html"
 ADMIN_STATION_TEMPLATE = TEMPLATE_FOLDER + "/admin_station.html"
 DASHBOARD_TEMPLATE = TEMPLATE_FOLDER + "/dashboard.html"
 LOGIN_TEMPLATE = TEMPLATE_FOLDER + "/login.html"
+TEST_TEMPLATE = TEMPLATE_FOLDER + "/test.html"
 
 
 # ---------------------------------------------------------
@@ -395,10 +397,11 @@ def render_dashboard_page(wifi_manager):
     """
     Permanent LAN dashboard (product surface).
 
-    Phase 1: shared shell + placeholder. Product modes come later.
+    Optional Test link appears when Admin enables test mode.
     """
 
     connected = wifi_manager.is_connected()
+    product = load_product_config()
 
     if connected:
         connection_status = "Online"
@@ -409,6 +412,15 @@ def render_dashboard_page(wifi_manager):
         status_pill_class = "off"
         ip_address = "Unavailable"
 
+    test_link_html = ""
+
+    if product.get("test_mode"):
+        test_link_html = (
+            '<a class="test-link" href="/test">'
+            "Open test outputs →"
+            "</a>"
+        )
+
     return render_template(
         DASHBOARD_TEMPLATE,
         {
@@ -417,6 +429,54 @@ def render_dashboard_page(wifi_manager):
             "STATUS_PILL_CLASS": status_pill_class,
             "MDNS_NAME": html_escape(wifi_manager.get_mdns_name()),
             "IP_ADDRESS": html_escape(ip_address),
+            "TEST_LINK_HTML": test_link_html,
+        }
+    )
+
+
+def render_test_page(test_outputs, message=""):
+    """
+    GPIO test page for pins 16, 42, and 47.
+    """
+
+    controls = []
+
+    for item in test_outputs.snapshot():
+        pin = item["pin"]
+        on = item["on"]
+        state_label = "ON" if on else "OFF"
+        state_class = "on" if on else ""
+
+        controls.append(
+            '<div class="pin-row">'
+            '<div>'
+            '<span class="pin-label">GPIO {pin}</span>'
+            '<span class="pin-state {state_class}">State: {state}</span>'
+            "</div>"
+            '<div class="actions">'
+            '<form method="POST" action="/test" style="display:inline">'
+            '<input type="hidden" name="pin" value="{pin}">'
+            '<input type="hidden" name="state" value="on">'
+            '<button class="button on" type="submit">On</button>'
+            "</form>"
+            '<form method="POST" action="/test" style="display:inline">'
+            '<input type="hidden" name="pin" value="{pin}">'
+            '<input type="hidden" name="state" value="off">'
+            '<button class="button off" type="submit">Off</button>'
+            "</form>"
+            "</div>"
+            "</div>".format(
+                pin=pin,
+                state=state_label,
+                state_class=state_class,
+            )
+        )
+
+    return render_template(
+        TEST_TEMPLATE,
+        {
+            "MESSAGE_HTML": build_message_html(message),
+            "PIN_CONTROLS": "".join(controls),
         }
     )
 
@@ -452,6 +512,9 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
 
     if mode == "station":
         setup_ap = load_setup_ap_config()
+        product = load_product_config()
+        test_mode_on = ' checked' if product.get("test_mode") else ""
+        test_mode_off = "" if product.get("test_mode") else " checked"
 
         print("Rendering station admin page...")
 
@@ -470,6 +533,8 @@ def render_admin_page(wifi_manager, mode="setup", message=""):
                 "LOCAL_URL": html_escape(local_url),
                 "AP_SSID": html_escape(setup_ap["ssid"]),
                 "AP_PASSWORD": html_escape(setup_ap["password"]),
+                "TEST_MODE_ON": test_mode_on,
+                "TEST_MODE_OFF": test_mode_off,
                 "MESSAGE_HTML": build_message_html(message)
             }
         )

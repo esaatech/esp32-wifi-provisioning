@@ -1,0 +1,65 @@
+"""
+test_outputs.py
+
+GPIO outputs used by the optional Test page (Task 21).
+
+Pins (ESP32-S3 breadboard wiring):
+    GPIO 16, 42, 47  — LED, buzzer, or other active-high loads
+
+These are separate from the status LED (GPIO 2).
+"""
+
+from machine import Pin
+
+
+TEST_PINS = (16, 42, 47)
+
+
+class TestOutputs:
+    """
+    Simple digital outputs for the LAN test dashboard.
+    """
+
+    def __init__(self, pins=TEST_PINS):
+        self.pins = {}
+        self.state = {}
+
+        for pin_number in pins:
+            self.pins[pin_number] = Pin(pin_number, Pin.OUT, value=0)
+            self.state[pin_number] = False
+
+    def allowed_pins(self):
+        return tuple(self.pins.keys())
+
+    def set_output(self, pin_number, on):
+        pin_number = int(pin_number)
+
+        if pin_number not in self.pins:
+            raise ValueError("Pin {} is not a test output.".format(pin_number))
+
+        value = 1 if on else 0
+        self.pins[pin_number].value(value)
+        self.state[pin_number] = bool(on)
+
+        return self.state[pin_number]
+
+    def get_output(self, pin_number):
+        pin_number = int(pin_number)
+
+        if pin_number not in self.pins:
+            raise ValueError("Pin {} is not a test output.".format(pin_number))
+
+        return self.state[pin_number]
+
+    def snapshot(self):
+        items = []
+
+        for pin_number in sorted(self.pins.keys()):
+            items.append(
+                {
+                    "pin": pin_number,
+                    "on": self.state[pin_number],
+                }
+            )
+
+        return items

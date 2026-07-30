@@ -5,6 +5,7 @@ import json
 WIFI_CONFIG_FILE = "wifi_config.json"
 SETUP_AP_CONFIG_FILE = "setup_ap.json"
 HOSTNAME_CONFIG_FILE = "hostname.json"
+PRODUCT_CONFIG_FILE = "product.json"
 
 DEFAULT_SETUP_AP_SSID = "Esaatech-Setup"
 DEFAULT_SETUP_AP_PASSWORD = "setup1234"
@@ -162,3 +163,36 @@ def save_hostname(hostname):
         json.dump(config, file)
 
     return name
+
+
+def load_product_config():
+    """
+    Product UI flags for the networking template.
+
+    test_mode: when True, dashboard shows a link to /test
+    for GPIO output experiments (Task 21).
+    """
+
+    try:
+        with open(PRODUCT_CONFIG_FILE, "r") as file:
+            config = json.load(file)
+
+        return {
+            "test_mode": bool(config.get("test_mode", False))
+        }
+
+    except (OSError, ValueError):
+        return {
+            "test_mode": False
+        }
+
+
+def save_product_config(test_mode):
+    config = {
+        "test_mode": bool(test_mode)
+    }
+
+    with open(PRODUCT_CONFIG_FILE, "w") as file:
+        json.dump(config, file)
+
+    return config

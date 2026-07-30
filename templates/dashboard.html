@@ -100,6 +100,12 @@
             word-break:break-all;
         }
         .meta a{color:#64748b}
+        .test-link{
+            display:block;margin-top:14px;padding:14px 16px;
+            border-radius:12px;background:#fff;color:#1d4ed8;
+            font-weight:800;text-decoration:none;
+            box-shadow:0 6px 18px rgba(15,23,42,.06)
+        }
     </style>
 </head>
 <body>
@@ -122,16 +128,19 @@
         <p class="hero-kicker">Dashboard</p>
         <h1>Device ready</h1>
         <p>
-            Phase 1 shell. Product controls for access control and
-            home automation will appear here next.
+            This is the product shell. Replace this page for access
+            control, home automation, or other Esaatech devices.
+            Networking settings stay under Admin.
         </p>
     </section>
+
+    {{TEST_LINK_HTML}}
 
     <section class="panel">
         <h2>What's next</h2>
         <p>
-            Use <strong>Admin</strong> for Wi-Fi, hostname, and
-            passwords. Day-to-day actions will live on this dashboard.
+            Use <strong>Admin</strong> for Wi-Fi, hostname, passwords,
+            and to turn the Test outputs page on or off.
         </p>
     </section>
 
