@@ -7,8 +7,114 @@
   const proxStatus = document.getElementById("proxStatus");
   const proxDetail = document.getElementById("proxDetail");
   const updatedAt = document.getElementById("updatedAt");
+  const soundToggle = document.getElementById("soundToggle");
 
   const pending = new Map();
+  const SOUND_KEY = "esaatech.proximitySound";
+
+  let soundOn = localStorage.getItem(SOUND_KEY) === "1";
+  let proximity = initial.proximity || null;
+  let audioCtx = null;
+  let humOsc = null;
+  let humGain = null;
+  let humLfo = null;
+  let humming = false;
+
+  function syncSoundButton() {
+    soundToggle.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    soundToggle.textContent = soundOn ? "Sound on" : "Sound off";
+  }
+
+  async function unlockAudio() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return false;
+      audioCtx = new Ctx();
+    }
+    if (audioCtx.state === "suspended") {
+      try {
+        await audioCtx.resume();
+      } catch (_) {
+        return false;
+      }
+    }
+    return audioCtx.state === "running";
+  }
+
+  function stopHum() {
+    if (!humming) return;
+    humming = false;
+    try {
+      if (humGain && audioCtx) {
+        const now = audioCtx.currentTime;
+        humGain.gain.cancelScheduledValues(now);
+        humGain.gain.setValueAtTime(humGain.gain.value, now);
+        humGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    const osc = humOsc;
+    const lfo = humLfo;
+    humOsc = null;
+    humGain = null;
+    humLfo = null;
+    window.setTimeout(() => {
+      try {
+        if (osc) osc.stop();
+      } catch (_) {
+        /* ignore */
+      }
+      try {
+        if (lfo) lfo.stop();
+      } catch (_) {
+        /* ignore */
+      }
+    }, 140);
+  }
+
+  async function startHum() {
+    if (!soundOn || proximity !== "DETECTED" || humming) return;
+    const ok = await unlockAudio();
+    if (!ok || !audioCtx) return;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+
+    // Soft low hum with a tiny wobble so it feels alive, not a pure beep.
+    osc.type = "sine";
+    osc.frequency.value = 118;
+    lfo.type = "sine";
+    lfo.frequency.value = 2.2;
+    lfoGain.gain.value = 6;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    gain.gain.value = 0.0001;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.045, now + 0.18);
+
+    osc.start();
+    lfo.start();
+
+    humOsc = osc;
+    humGain = gain;
+    humLfo = lfo;
+    humming = true;
+  }
+
+  function syncProximitySound() {
+    if (soundOn && proximity === "DETECTED") {
+      startHum();
+    } else {
+      stopHum();
+    }
+  }
 
   function applyState(state) {
     if (!state) return;
@@ -38,17 +144,19 @@
       }
     }
 
-    const prox = state.proximity;
+    proximity = state.proximity || null;
     const human = state.proximity_label || "Waiting for sensor…";
-    proxPanel.dataset.status = prox || "unknown";
+    proxPanel.dataset.status = proximity || "unknown";
     proxStatus.textContent = human;
-    if (prox && state.proximity_seq != null) {
-      proxDetail.textContent = `${prox} seq=${state.proximity_seq}`;
-    } else if (prox) {
-      proxDetail.textContent = prox;
+    if (proximity && state.proximity_seq != null) {
+      proxDetail.textContent = `${proximity} seq=${state.proximity_seq}`;
+    } else if (proximity) {
+      proxDetail.textContent = proximity;
     } else {
       proxDetail.textContent = "FC-51 on GPIO 4 · event telemetry";
     }
+
+    syncProximitySound();
 
     if (state.updated_at) {
       const d = new Date(state.updated_at * 1000);
@@ -89,6 +197,18 @@
       sendCommand(card.dataset.pin, input.checked);
     });
   }
+
+  soundToggle.addEventListener("click", async () => {
+    soundOn = !soundOn;
+    localStorage.setItem(SOUND_KEY, soundOn ? "1" : "0");
+    syncSoundButton();
+    if (soundOn) {
+      await unlockAudio();
+      syncProximitySound();
+    } else {
+      stopHum();
+    }
+  });
 
   function onEvent(event) {
     if (event.type === "gpio" && event.pin != null) {
@@ -134,6 +254,7 @@
     });
   }
 
+  syncSoundButton();
   applyState(initial);
   connectWs();
 })();

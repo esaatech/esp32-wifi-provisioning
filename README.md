@@ -656,6 +656,7 @@ Open http://127.0.0.1:8000/
 **UI**
 - Toggle switches for GPIO 16 / 42 / 47 (command + live state sync)
 - Proximity panel (“Nothing in range” / “Object nearby”)
+- Optional proximity alert sound: soft hum while DETECTED; **Sound on / Sound off** in the panel (browser-only, preference saved locally)
 - WebSocket live updates from retained MQTT topics
 
 **API**
