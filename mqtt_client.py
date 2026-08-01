@@ -1,11 +1,13 @@
 # mqtt_client.py
 #
-# Persistent MQTT session for EMQX Cloud (Tasks 24–25).
+# Persistent MQTT session for EMQX Cloud (Tasks 24–27).
 #
 # - TLS on port 8883 with CA verification + SNI
 # - Unique client ID from the chip unique_id
 # - Subscribe to one command topic per test GPIO (16 / 42 / 47)
 # - Accept ON / OFF payloads and drive the shared TestOutputs pins
+# - Publish retained state on .../gpio/<pin>/state after changes and reconnect
+# - Publish FC-51 proximity telemetry on .../telemetry/proximity (Task 27)
 # - Keep-alive pings and automatic reconnect with backoff
 # - NTP time sync before TLS (ESP32 RTC starts at epoch; certs fail otherwise)
 
@@ -62,6 +64,14 @@ def _pin_from_command_topic(topic_text, client_id):
     return pin_number
 
 
+def _state_topic(client_id, pin_number):
+    return "devices/{}/gpio/{}/state".format(client_id, pin_number)
+
+
+def _proximity_topic(client_id):
+    return "devices/{}/telemetry/proximity".format(client_id)
+
+
 class MqttSession:
     """
     Non-blocking MQTT client meant for the main station loop.
@@ -79,6 +89,7 @@ class MqttSession:
         self._enabled = False
         self._time_synced = False
         self._outputs = None
+        self._proximity_seq = 0
 
         self.reload_config()
 
@@ -101,6 +112,12 @@ class MqttSession:
         print("MQTT: client id", self._client_id)
         for topic in self._gpio_topics:
             print("MQTT: command topic", topic)
+        for pin in TEST_PINS:
+            print("MQTT: state topic", _state_topic(self._client_id, pin))
+        print("MQTT: telemetry topic", _proximity_topic(self._client_id))
+
+        # Bind shared GPIO early so /test toggles can publish once MQTT is up.
+        self._get_outputs()
         return True
 
     def _build_client_id(self):
@@ -110,10 +127,72 @@ class MqttSession:
     def _get_outputs(self):
         if self._outputs is None:
             self._outputs = get_shared_test_outputs()
+            # HTTP /test and MQTT commands both report through this hook.
+            self._outputs.on_change = self._on_gpio_changed
         return self._outputs
+
+    def _on_gpio_changed(self, pin_number, on):
+        self.publish_gpio_state(pin_number)
 
     def is_connected(self):
         return self._connected
+
+    def publish_gpio_state(self, pin_number):
+        """
+        Publish retained ON/OFF for one pin (Task 26).
+        """
+
+        if not self._connected or self._client is None or self._client_id is None:
+            return False
+
+        try:
+            on = self._get_outputs().get_output(pin_number)
+        except ValueError:
+            return False
+
+        topic = _state_topic(self._client_id, pin_number)
+        payload = "ON" if on else "OFF"
+
+        try:
+            self._client.publish(topic, payload, retain=True)
+            print("MQTT state", topic, "=>", payload)
+            return True
+        except Exception as error:
+            print("MQTT: state publish failed:", repr(error))
+            return False
+
+    def publish_all_gpio_states(self):
+        for pin_number in TEST_PINS:
+            self.publish_gpio_state(pin_number)
+
+    def publish_proximity(self, label):
+        """
+        Publish FC-51 proximity telemetry (Task 27).
+
+        Event-driven: call only when CLEAR ↔ DETECTED changes,
+        and once after MQTT connect for retained last-known state.
+
+        Payload example: "DETECTED seq=3"
+        """
+
+        if not self._connected or self._client is None or self._client_id is None:
+            return False
+
+        label = (label or "").strip().upper()
+        if label not in ("CLEAR", "DETECTED"):
+            return False
+
+        self._proximity_seq += 1
+        topic = _proximity_topic(self._client_id)
+        payload = "{} seq={}".format(label, self._proximity_seq)
+
+        try:
+            self._client.publish(topic, payload, retain=True)
+            print("MQTT telemetry", topic, "=>", payload)
+            return True
+        except Exception as error:
+            print("MQTT: proximity publish failed:", repr(error))
+            return False
 
     def stop(self):
         """
@@ -287,16 +366,18 @@ class MqttSession:
             for topic in self._gpio_topics:
                 client.subscribe(topic)
 
-            # Warm the shared GPIO controller after MQTT is up.
-            self._get_outputs()
-
             self._client = client
             self._connected = True
             self._last_ping_ms = time.ticks_ms()
             self._backoff_ms = 1000
 
+            # Shared GPIO + HTTP change hook, then report current state.
+            self._get_outputs()
+            self.publish_all_gpio_states()
+
             print("MQTT: connected.")
             print("MQTT: subscribed to GPIO command topics", TEST_PINS)
+            print("MQTT: published retained GPIO states")
 
         except Exception as error:
             print("MQTT: connect failed:", repr(error))

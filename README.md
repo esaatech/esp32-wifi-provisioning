@@ -208,6 +208,8 @@ admin_auth.py
 
 test_outputs.py
 
+proximity_sensor.py
+
 mqtt_client.py
 
 setup_button.py
@@ -221,6 +223,18 @@ umqtt/
 mqtt_config.example.json
 
 emqxsl-ca.crt
+
+backend/
+
+    README.md
+
+    requirements.txt
+
+    app/
+
+    templates/
+
+    static/
 
 templates/
 
@@ -562,7 +576,11 @@ Delete saved Wi-Fi credentials
 
 ✅ Remote LED / GPIO control via MQTT (Task 25) — GPIO 16/42/47, one topic per pin
 
-⬜ Report device state over MQTT (Task 26) — **next**
+✅ Report device state over MQTT (Task 26) — retained .../gpio/<pin>/state
+
+✅ Publish sensor telemetry over MQTT (Task 27) — FC-51 proximity on GPIO 4
+
+✅ FastAPI IoT backend (Task 28) — local HTTP ↔ MQTT UI in `backend/`
 
 ### MQTT GPIO control (Task 25)
 
@@ -583,6 +601,69 @@ devices/esaatech-44b176ce2fe4/gpio/16/command
 ```
 
 Publish from MQTTX desktop (TLS port 8883). Serial should show `MQTT GPIO 16: ON`.
+
+### MQTT GPIO state (Task 26)
+
+ESP32 publishes retained plaintext state so MQTTX can learn the pin without commanding first:
+
+```text
+devices/<client_id>/gpio/16/state
+devices/<client_id>/gpio/42/state
+devices/<client_id>/gpio/47/state
+```
+
+Published when:
+- a valid MQTT command changes a pin
+- MQTT connects / reconnects (all three pins)
+- the local `/test` page changes a pin
+
+In MQTTX subscribe to `devices/esaatech-44b176ce2fe4/gpio/+/state` (or each pin).
+
+### MQTT proximity telemetry (Task 27)
+
+FC-51 IR obstacle sensor on **GPIO 4**. Event-driven publish (only on change), retained:
+
+```text
+devices/<client_id>/telemetry/proximity
+```
+
+Payload: `CLEAR seq=N` or `DETECTED seq=N`.
+
+Also published once after MQTT connect (last-known state).
+
+Example: `devices/esaatech-44b176ce2fe4/telemetry/proximity`
+
+### FastAPI IoT backend (Task 28)
+
+Local Python backend that replaces MQTTX as the day-to-day control app:
+
+```text
+Browser UI  ←HTTP/WS→  FastAPI  ←MQTT TLS→  EMQX  ←→  ESP32
+```
+
+**Run**
+
+```bash
+cd backend
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Open http://127.0.0.1:8000/
+
+**UI**
+- Toggle switches for GPIO 16 / 42 / 47 (command + live state sync)
+- Proximity panel (“Nothing in range” / “Object nearby”)
+- WebSocket live updates from retained MQTT topics
+
+**API**
+- `GET /api/state` — latest GPIO + proximity mirror
+- `POST /api/gpio/{pin}/command` — body `{"on": true|false}`
+- `GET /api/health` — MQTT connection check
+
+Credentials load from `backend/.env` or repo-root `mqtt_config.json`. Run **one** backend instance only (duplicate MQTT client IDs fight on the broker).
 
 ⬜ Production hardening bundle (Task 31: config integrity, HTTP LAN security notes, field updates, watchdog leftovers)
 

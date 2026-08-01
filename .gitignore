@@ -1,3 +1,6 @@
 __pycache__/
 mqtt_config.json
+backend/.env
+backend/.venv/
+backend/**/__pycache__/
 

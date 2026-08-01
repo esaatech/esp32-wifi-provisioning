@@ -7,6 +7,7 @@
 # - Start setup mode when no valid credentials exist.
 # - Host a permanent LAN admin page while connected.
 # - Keep a persistent MQTT client session while connected (Task 24).
+# - Poll FC-51 proximity on GPIO 4 (Task 27; MQTT publish next).
 # - Monitor a dedicated setup button.
 # - Display Wi-Fi status using the onboard LED.
 #
@@ -27,6 +28,7 @@ from wifi_manager import WiFiManager
 from wifi_storage import load_credentials, load_setup_ap_config
 from setup_button import SetupButton
 from status_led import StatusLED
+from proximity_sensor import ProximitySensor
 
 
 # Soft-reboot flag used when the setup button is pressed while
@@ -42,10 +44,12 @@ FORCE_SETUP_FLAG = "force_setup.flag"
 wifi = WiFiManager()
 setup_button = SetupButton()
 status_led = StatusLED()
+proximity = ProximitySensor()
 
 # Created only after Wi-Fi is up (or when setup needs it).
 admin_server = None
 mqtt_session = None
+_proximity_mqtt_synced = False
 
 
 def get_admin_server():
@@ -313,6 +317,10 @@ print()
 print("Networking system running.")
 print("Hold the setup button for 5 seconds")
 print("to reopen Wi-Fi configuration.")
+print(
+    "Proximity FC-51 GPIO 4:",
+    proximity.state_label(),
+)
 
 if wifi.is_connected():
     print("Admin page:", wifi.get_local_url())
@@ -333,9 +341,27 @@ while True:
             server.start()
 
         server.poll()
-        get_mqtt_session().poll()
+        mqtt = get_mqtt_session()
+        mqtt.poll()
+
+        if mqtt.is_connected():
+            if not _proximity_mqtt_synced:
+                mqtt.publish_proximity(proximity.state_label())
+                _proximity_mqtt_synced = True
+
+            changed, label = proximity.poll_change()
+            if changed:
+                print("Proximity:", label)
+                mqtt.publish_proximity(label)
+        else:
+            _proximity_mqtt_synced = False
+            changed, label = proximity.poll_change()
+            if changed:
+                print("Proximity:", label)
 
     else:
+        _proximity_mqtt_synced = False
+
         if admin_server is not None and admin_server.is_running():
             admin_server.stop()
 
@@ -344,6 +370,10 @@ while True:
         if not status_led.is_blinking:
             print("Wi-Fi connection lost.")
             status_led.blink()
+
+        changed, label = proximity.poll_change()
+        if changed:
+            print("Proximity:", label)
 
     if wifi.is_connected():
 

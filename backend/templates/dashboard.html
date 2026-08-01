@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Esaatech · Device Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/dashboard.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div>
+        <p class="brand">Esaatech</p>
+        <h1>Device control</h1>
+        <p class="sub">HTTP → FastAPI → MQTT → ESP32</p>
+      </div>
+      <div class="mqtt-pill" id="mqttPill" data-connected="false">
+        <span class="dot"></span>
+        <span id="mqttLabel">MQTT connecting…</span>
+      </div>
+    </header>
+
+    <p class="device-id">
+      <span>Device</span>
+      <code id="deviceId">{{ device_id }}</code>
+    </p>
+
+    <section class="outputs" aria-label="GPIO switches">
+      <h2>Outputs</h2>
+      <p class="section-note">Flip a switch to command the pin. It also follows the device state topic.</p>
+
+      <div class="switch-grid">
+        {% for pin in pins %}
+        <label class="switch-card" data-pin="{{ pin }}">
+          <div class="switch-meta">
+            <span class="pin-name">GPIO {{ pin }}</span>
+            <span class="pin-state" data-role="state">—</span>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            class="sr-only"
+            data-role="input"
+            aria-label="GPIO {{ pin }} power"
+          />
+          <span class="toggle" aria-hidden="true">
+            <span class="knob"></span>
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="proximity" aria-label="Proximity sensor" id="proximityPanel" data-status="unknown">
+      <div class="prox-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="56" height="56" fill="none">
+          <circle cx="32" cy="32" r="6" fill="currentColor"/>
+          <path d="M18 32a14 14 0 0 1 28 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          <path d="M10 32a22 22 0 0 1 44 0" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+          <path d="M4 32a28 28 0 0 1 56 0" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/>
+        </svg>
+      </div>
+      <div class="prox-copy">
+        <h2>Proximity</h2>
+        <p class="prox-status" id="proxStatus">Waiting for sensor…</p>
+        <p class="prox-detail" id="proxDetail">FC-51 on GPIO 4 · event telemetry</p>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span>Task 28 · local FastAPI IoT backend</span>
+      <span id="updatedAt"></span>
+    </footer>
+  </div>
+
+  <script>
+    window.__ESAATECH_INITIAL__ = {{ initial | tojson }};
+  </script>
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>
