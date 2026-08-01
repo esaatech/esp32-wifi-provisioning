@@ -1,7 +1,8 @@
 """
 test_outputs.py
 
-GPIO outputs used by the optional Test page (Task 21).
+GPIO outputs used by the optional Test page (Task 21) and
+MQTT remote control (Task 25).
 
 Pins (ESP32-S3 breadboard wiring):
     GPIO 16, 42, 47  — LED, buzzer, or other active-high loads
@@ -14,10 +15,26 @@ from machine import Pin
 
 TEST_PINS = (16, 42, 47)
 
+_shared_outputs = None
+
+
+def get_shared_test_outputs():
+    """
+    One shared pin controller for HTTP /test and MQTT commands.
+    """
+
+    global _shared_outputs
+
+    if _shared_outputs is None:
+        _shared_outputs = TestOutputs()
+        print("Test outputs ready on pins:", _shared_outputs.allowed_pins())
+
+    return _shared_outputs
+
 
 class TestOutputs:
     """
-    Simple digital outputs for the LAN test dashboard.
+    Simple digital outputs for the LAN test dashboard and MQTT.
     """
 
     def __init__(self, pins=TEST_PINS):

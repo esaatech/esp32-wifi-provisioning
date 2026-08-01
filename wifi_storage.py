@@ -6,10 +6,14 @@ WIFI_CONFIG_FILE = "wifi_config.json"
 SETUP_AP_CONFIG_FILE = "setup_ap.json"
 HOSTNAME_CONFIG_FILE = "hostname.json"
 PRODUCT_CONFIG_FILE = "product.json"
+MQTT_CONFIG_FILE = "mqtt_config.json"
 
 DEFAULT_SETUP_AP_SSID = "Esaatech-Setup"
 DEFAULT_SETUP_AP_PASSWORD = "setup1234"
 DEFAULT_HOSTNAME = "esaatech-access"
+DEFAULT_MQTT_PORT = 8883
+DEFAULT_MQTT_KEEPALIVE = 60
+DEFAULT_MQTT_CA_FILE = "emqxsl-ca.crt"
 
 
 def save_credentials(ssid, password):
@@ -196,3 +200,58 @@ def save_product_config(test_mode):
         json.dump(config, file)
 
     return config
+
+
+def load_mqtt_config():
+    """
+    Returns MQTT broker settings for Task 24+.
+
+    Missing or invalid files return None so MQTT stays off.
+    Password stays on-device in mqtt_config.json (gitignored).
+    """
+
+    try:
+        with open(MQTT_CONFIG_FILE, "r") as file:
+            config = json.load(file)
+
+    except (OSError, ValueError):
+        return None
+
+    if not isinstance(config, dict):
+        return None
+
+    if not config.get("enabled", True):
+        return None
+
+    host = (config.get("host") or "").strip()
+    username = (config.get("username") or "").strip()
+    password = config.get("password") or ""
+
+    if not host or not username:
+        return None
+
+    try:
+        port = int(config.get("port", DEFAULT_MQTT_PORT))
+    except (TypeError, ValueError):
+        port = DEFAULT_MQTT_PORT
+
+    try:
+        keepalive = int(config.get("keepalive", DEFAULT_MQTT_KEEPALIVE))
+    except (TypeError, ValueError):
+        keepalive = DEFAULT_MQTT_KEEPALIVE
+
+    if keepalive < 10:
+        keepalive = DEFAULT_MQTT_KEEPALIVE
+
+    ca_file = (config.get("ca_file") or DEFAULT_MQTT_CA_FILE).strip()
+    command_topic = (config.get("command_topic") or "").strip() or None
+
+    return {
+        "host": host,
+        "port": port,
+        "username": username,
+        "password": password,
+        "keepalive": keepalive,
+        "ca_file": ca_file or DEFAULT_MQTT_CA_FILE,
+        "command_topic": command_topic,
+    }

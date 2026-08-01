@@ -6,6 +6,7 @@
 # - Connect using saved Wi-Fi credentials.
 # - Start setup mode when no valid credentials exist.
 # - Host a permanent LAN admin page while connected.
+# - Keep a persistent MQTT client session while connected (Task 24).
 # - Monitor a dedicated setup button.
 # - Display Wi-Fi status using the onboard LED.
 #
@@ -44,6 +45,7 @@ status_led = StatusLED()
 
 # Created only after Wi-Fi is up (or when setup needs it).
 admin_server = None
+mqtt_session = None
 
 
 def get_admin_server():
@@ -64,6 +66,33 @@ def get_admin_server():
         print("Admin server module loaded.")
 
     return admin_server
+
+
+def get_mqtt_session():
+    """
+    Lazily create the MQTT session (Task 24).
+
+    Skips quietly when mqtt_config.json is missing.
+    """
+
+    global mqtt_session
+
+    if mqtt_session is None:
+        gc.collect()
+        from mqtt_client import MqttSession
+
+        mqtt_session = MqttSession()
+        print("MQTT session module loaded.")
+
+    return mqtt_session
+
+
+def stop_mqtt_session():
+    global mqtt_session
+
+    if mqtt_session is not None:
+        mqtt_session.stop()
+
 
 
 # -------------------------------------------------
@@ -95,6 +124,8 @@ def request_setup_reboot():
     """
 
     print("Preparing clean restart into Wi-Fi setup mode...")
+
+    stop_mqtt_session()
 
     server = admin_server
 
@@ -196,6 +227,8 @@ def enter_setup_mode():
 
     status_led.blink()
 
+    stop_mqtt_session()
+
     server = admin_server
 
     if server is not None:
@@ -237,6 +270,7 @@ def enter_setup_mode():
 
         status_led.solid()
         get_admin_server().start()
+        get_mqtt_session()
         return True
 
     print("ESP32 is not connected to Wi-Fi.")
@@ -268,6 +302,7 @@ else:
 
 if connected:
     get_admin_server().start()
+    get_mqtt_session()
 
 
 # -------------------------------------------------
@@ -298,21 +333,23 @@ while True:
             server.start()
 
         server.poll()
+        get_mqtt_session().poll()
 
-    elif admin_server is not None and admin_server.is_running():
-        admin_server.stop()
+    else:
+        if admin_server is not None and admin_server.is_running():
+            admin_server.stop()
+
+        stop_mqtt_session()
+
+        if not status_led.is_blinking:
+            print("Wi-Fi connection lost.")
+            status_led.blink()
 
     if wifi.is_connected():
 
         if status_led.is_blinking:
             print("Wi-Fi connection detected.")
             status_led.solid()
-
-    else:
-
-        if not status_led.is_blinking:
-            print("Wi-Fi connection lost.")
-            status_led.blink()
 
     if setup_button.wait_for_long_press():
         print("Setup-button long press confirmed.")

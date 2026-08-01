@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "host": "q92a0c11.ala.us-east-1.emqxsl.com",
+  "port": 8883,
+  "username": "esp32",
+  "password": "CHANGE_ME",
+  "keepalive": 60,
+  "ca_file": "emqxsl-ca.crt"
+}

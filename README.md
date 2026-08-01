@@ -208,9 +208,19 @@ admin_auth.py
 
 test_outputs.py
 
+mqtt_client.py
+
 setup_button.py
 
 status_led.py
+
+umqtt/
+
+    simple.py
+
+mqtt_config.example.json
+
+emqxsl-ca.crt
 
 templates/
 
@@ -548,11 +558,31 @@ Delete saved Wi-Fi credentials
 
 ✅ EMQX Cloud broker deployed and pub/sub verified (Task 23)
 
-⬜ Connect ESP32 to MQTT over TLS (Task 24) — **next**
+✅ Connect ESP32 to MQTT over TLS (Task 24)
 
-⬜ Remote LED / GPIO control via MQTT (Task 25)
+✅ Remote LED / GPIO control via MQTT (Task 25) — GPIO 16/42/47, one topic per pin
 
-⬜ Report device state over MQTT (Task 26)
+⬜ Report device state over MQTT (Task 26) — **next**
+
+### MQTT GPIO control (Task 25)
+
+Same pins as the LAN `/test` page. One command topic per pin:
+
+```text
+devices/<client_id>/gpio/16/command
+devices/<client_id>/gpio/42/command
+devices/<client_id>/gpio/47/command
+```
+
+Payload: `ON` or `OFF` (also accepts `1`/`0`, `true`/`false`).
+
+Example for this board (`esaatech-44b176ce2fe4`):
+
+```text
+devices/esaatech-44b176ce2fe4/gpio/16/command
+```
+
+Publish from MQTTX desktop (TLS port 8883). Serial should show `MQTT GPIO 16: ON`.
 
 ⬜ Production hardening bundle (Task 31: config integrity, HTTP LAN security notes, field updates, watchdog leftovers)
 
@@ -572,8 +602,43 @@ MQTT adds Internet messaging through a broker:
 2. **Task 23** — EMQX Cloud Serverless broker + credentials + laptop pub/sub test (done)
 3. **Task 24** — ESP32 becomes a persistent TLS MQTT client (subscribe + auto-reconnect)
 
+### ESP32 MQTT client (Task 24)
+
+On the board, MQTT starts only after Wi-Fi is connected. It does **not** replace
+the local admin site.
+
+**Files**
+
+| File | Role |
+|------|------|
+| `mqtt_client.py` | TLS connect, subscribe, keep-alive, reconnect |
+| `umqtt/simple.py` | Vendored MicroPython MQTT client |
+| `emqxsl-ca.crt` | Broker CA trust bundle (public) |
+| `mqtt_config.example.json` | Template — copy to `mqtt_config.json` on the device |
+| `mqtt_config.json` | On-device secrets (gitignored; never commit) |
+
+**Setup on the ESP32**
+
+1. Copy `mqtt_config.example.json` → `mqtt_config.json` on the board.
+2. Set `password` to your EMQX Authentication password.
+3. Upload `mqtt_client.py`, `umqtt/`, `emqxsl-ca.crt`, and updated `main.py` /
+   `wifi_storage.py`.
+4. Soft-reset and watch the serial log for:
+   - `MQTT: connected.`
+   - `MQTT: subscribed to devices/esaatech-<chipid>/command`
+
+**Test from a laptop**
+
+1. Connect MQTTX (or any MQTT client) to the same EMQX host, port `8883`, TLS.
+2. Publish any text to the command topic printed in the serial log.
+3. The ESP32 should print: `MQTT: message on ... => ...`
+4. Briefly drop Wi-Fi or restart the broker session — the ESP32 should reconnect
+   and keep receiving messages.
+
+GPIO reaction to MQTT commands is implemented in Task 25 (pins 16 / 42 / 47).
+
 Broker connection details (no password in git): host and TLS port live in the
-EMQX Cloud console; device credentials stay on the board in a local config file.
+EMQX Cloud console; device credentials stay on the board in `mqtt_config.json`.
 
 ---
 

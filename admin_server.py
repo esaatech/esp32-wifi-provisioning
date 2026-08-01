@@ -85,12 +85,9 @@ class AdminServer:
     # -------------------------------------------------
 
     def _get_test_outputs(self):
-        if self.test_outputs is None:
-            from test_outputs import TestOutputs
+        from test_outputs import get_shared_test_outputs
 
-            self.test_outputs = TestOutputs()
-            print("Test outputs ready on pins:", self.test_outputs.allowed_pins())
-
+        self.test_outputs = get_shared_test_outputs()
         return self.test_outputs
 
     # -------------------------------------------------
